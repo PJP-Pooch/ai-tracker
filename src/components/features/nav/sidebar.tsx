@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, Brain, FileSearch, Globe, LayoutDashboard, Settings, Users } from 'lucide-react'
+import { useTransition } from 'react'
+import { BarChart3, Brain, FileSearch, Globe, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { signOut } from '@/app/(auth)/login/actions'
 import type { Route } from 'next'
 
 interface SidebarProps {
@@ -23,6 +25,7 @@ const navItems = (projectId: string) => [
 
 export function Sidebar({ projectId, projectName }: SidebarProps) {
   const pathname = usePathname()
+  const [isPending, startTransition] = useTransition()
 
   return (
     <aside className="w-64 shrink-0 flex flex-col h-full bg-sidebar text-sidebar-foreground">
@@ -71,6 +74,18 @@ export function Sidebar({ projectId, projectName }: SidebarProps) {
           <FileSearch className="w-3.5 h-3.5" />
           All Projects
         </Link>
+        <button
+          disabled={isPending}
+          onClick={() => {
+            startTransition(async () => {
+              await signOut()
+            })
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors text-left cursor-pointer disabled:opacity-50"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          {isPending ? 'Logging out...' : 'Log Out'}
+        </button>
         <div className="px-3 py-2">
           <ThemeToggle />
         </div>
