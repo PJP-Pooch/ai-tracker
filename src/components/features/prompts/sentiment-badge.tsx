@@ -4,7 +4,7 @@ type Sentiment = 'positive' | 'neutral' | 'negative' | null
 
 const styles: Record<string, string> = {
   positive: 'bg-green-50 text-green-700 border-green-200',
-  neutral: 'bg-neutral-100 text-neutral-600 border-neutral-200',
+  neutral: 'bg-muted text-muted-foreground border-border',
   negative: 'bg-red-50 text-red-700 border-red-200',
 }
 
@@ -15,7 +15,7 @@ const labels: Record<string, string> = {
 }
 
 export function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
-  if (!sentiment) return <span className="text-neutral-300 text-sm">—</span>
+  if (!sentiment) return <span className="text-muted-foreground/40 text-sm">—</span>
 
   return (
     <span

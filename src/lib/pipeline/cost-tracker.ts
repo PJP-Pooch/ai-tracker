@@ -14,6 +14,6 @@ export function estimateCost(platform: LLMPlatform, modelName: string): number {
 }
 
 export const PLATFORM_MODELS: Record<LLMPlatform, string> = {
-  chat_gpt: 'gpt-4o',
-  gemini: 'gemini-1.5-pro',
+  chat_gpt: 'gpt-4.1',
+  gemini: 'gemini-2.5-flash',
 }

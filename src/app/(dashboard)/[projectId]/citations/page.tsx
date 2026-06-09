@@ -20,8 +20,8 @@ export default async function CitationsPage({
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-neutral-900">Citation Intelligence</h1>
-        <p className="text-sm text-neutral-500 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">Citation Intelligence</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Discover which websites influence AI recommendations
         </p>
       </div>

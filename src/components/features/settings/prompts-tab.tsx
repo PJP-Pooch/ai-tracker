@@ -11,14 +11,21 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Trash2, Upload } from 'lucide-react'
+import { TemplateBuilder } from '@/components/features/prompts/template-builder'
 import type { Database } from '@/lib/supabase/types'
 
 type Prompt = Database['public']['Tables']['prompts']['Row']
 
 const priorityColors: Record<string, string> = {
-  high: 'bg-red-100 text-red-700',
-  medium: 'bg-amber-100 text-amber-700',
-  low: 'bg-neutral-100 text-neutral-600',
+  high: 'bg-red-100 text-red-700 border-red-200',
+  medium: 'bg-amber-100 text-amber-700 border-amber-200',
+  low: 'bg-neutral-100 text-neutral-600 border-neutral-200',
+}
+
+const intentColors: Record<string, string> = {
+  informational: 'bg-sky-100 text-sky-700 border-sky-200',
+  commercial: 'bg-purple-100 text-purple-700 border-purple-200',
+  transactional: 'bg-emerald-100 text-emerald-700 border-emerald-200',
 }
 
 export function PromptsTab({
@@ -34,9 +41,11 @@ export function PromptsTab({
   const [bulkText, setBulkText] = useState('')
   const [bulkOpen, setBulkOpen] = useState(false)
   const [priority, setPriority] = useState('medium')
+  const [intent, setIntent] = useState('informational')
 
   async function handleCreate(formData: FormData) {
     formData.set('priority', priority)
+    formData.set('intent', intent)
     const result = await createPrompt(projectId, formData)
     if (result?.error) setError(result.error)
   }
@@ -62,14 +71,19 @@ export function PromptsTab({
         {prompts.map((prompt) => (
           <Card key={prompt.id}>
             <CardContent className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-sm truncate">{prompt.prompt_text}</span>
-                <Badge className={priorityColors[prompt.priority]} variant="outline">
-                  {prompt.priority}
-                </Badge>
-                {!prompt.is_active && (
-                  <Badge variant="outline" className="text-neutral-400">Paused</Badge>
-                )}
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm truncate font-medium text-foreground/90">{prompt.prompt_text}</span>
+                <div className="flex gap-1.5 shrink-0 ml-2">
+                  <Badge className={priorityColors[prompt.priority]} variant="outline">
+                    {prompt.priority}
+                  </Badge>
+                  <Badge className={intentColors[prompt.intent ?? 'informational']} variant="outline">
+                    {prompt.intent ?? 'informational'}
+                  </Badge>
+                  {!prompt.is_active && (
+                    <Badge variant="outline" className="text-neutral-400">Paused</Badge>
+                  )}
+                </div>
               </div>
               {isAdmin && (
                 <Button
@@ -93,27 +107,32 @@ export function PromptsTab({
         <Card>
           <CardHeader className="flex-row items-center justify-between pb-3">
             <CardTitle className="text-base">Add Prompts</CardTitle>
-            <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
-              <DialogTrigger render={<Button variant="outline" size="sm" />}>
-                <Upload className="w-4 h-4 mr-2" />
-                Bulk Import
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Bulk Import Prompts</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <p className="text-sm text-neutral-500">Paste one prompt per line.</p>
-                  <Textarea
-                    rows={10}
-                    placeholder="best dog food UK&#10;best dog food for sensitive stomachs&#10;gut health dog food"
-                    value={bulkText}
-                    onChange={(e) => setBulkText(e.target.value)}
-                  />
-                  <Button onClick={handleBulk} className="w-full">Import Prompts</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <div className="flex gap-2">
+              <TemplateBuilder projectId={projectId} />
+              <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+                <DialogTrigger render={
+                  <Button variant="outline" size="sm">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Bulk Import
+                  </Button>
+                } />
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Bulk Import Prompts</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-sm text-neutral-500">Paste one prompt per line.</p>
+                    <Textarea
+                      rows={10}
+                      placeholder="best dog food UK&#10;best dog food for sensitive stomachs&#10;gut health dog food"
+                      value={bulkText}
+                      onChange={(e) => setBulkText(e.target.value)}
+                    />
+                    <Button onClick={handleBulk} className="w-full">Import Prompts</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardHeader>
           <CardContent>
             <form action={handleCreate} className="space-y-4">
@@ -136,12 +155,21 @@ export function PromptsTab({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>AI Search Volume (optional)</Label>
-                  <Input name="volume" type="number" placeholder="6800" />
+                  <Label>Intent</Label>
+                  <Select value={intent} onValueChange={(v) => { if (v) setIntent(v) }}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="informational">Informational</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                      <SelectItem value="transactional">Transactional</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit">Add Prompt</Button>
+              <Button type="submit" className="gradient-indigo">Add Prompt</Button>
             </form>
           </CardContent>
         </Card>

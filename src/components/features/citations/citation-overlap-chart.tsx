@@ -4,7 +4,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
 } from 'recharts'
+import { useTheme } from 'next-themes'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CHART_COLORS } from '@/lib/chart-colors'
 import type { CitationOverlapEntry } from '@/lib/queries/citations'
 
 interface CitationOverlapChartProps {
@@ -12,6 +14,9 @@ interface CitationOverlapChartProps {
 }
 
 export function CitationOverlapChart({ data }: CitationOverlapChartProps) {
+  const { resolvedTheme } = useTheme()
+  const colors = resolvedTheme === 'dark' ? CHART_COLORS.dark : CHART_COLORS.light
+
   if (data.length === 0) {
     return null
   }
@@ -31,19 +36,25 @@ export function CitationOverlapChart({ data }: CitationOverlapChartProps) {
       <CardContent>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={chartData} margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 11, fill: '#6b7280' }}
+              tick={{ fontSize: 11, fill: colors.axis }}
               tickLine={false}
             />
-            <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: colors.axis }} tickLine={false} axisLine={false} />
             <Tooltip
-              contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+              contentStyle={{
+                borderRadius: 8,
+                border: `1px solid ${colors.tooltip.border}`,
+                fontSize: 12,
+                background: colors.tooltip.bg,
+                color: colors.tooltip.color,
+              }}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="ChatGPT" fill="#6366f1" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="Gemini" fill="#a855f7" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="ChatGPT" fill={colors.primary} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Gemini" fill={colors.secondary} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

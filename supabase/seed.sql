@@ -7,7 +7,7 @@
 -- To use: paste your user UUID here
 DO $$
 DECLARE
-  v_user_id    UUID := 'aaaaaaaa-0000-0000-0000-000000000001'; -- REPLACE with real user id
+  v_user_id    UUID := NULL; -- set to your auth.users UUID after signing up, or leave NULL for dev
   v_project_id UUID := 'bbbbbbbb-0000-0000-0000-000000000001';
   v_brand_id   UUID := 'cccccccc-0000-0000-0000-000000000001';
   v_comp1_id   UUID := 'dddddddd-0000-0000-0000-000000000001';
@@ -30,7 +30,7 @@ INSERT INTO public.brands (id, project_id, name, domain, is_primary) VALUES
 -- Competitors
 INSERT INTO public.competitors (id, project_id, name, domain) VALUES
   (v_comp1_id, v_project_id, 'Butternut Box', 'butternutbox.com'),
-  (v_comp2_id, v_project_id, "Lily's Kitchen", 'lilyskitchen.co.uk');
+  (v_comp2_id, v_project_id, 'Lily''s Kitchen', 'lilyskitchen.co.uk');
 
 -- Prompts
 INSERT INTO public.prompts (id, project_id, prompt_text, volume, priority) VALUES

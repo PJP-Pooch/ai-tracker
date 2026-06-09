@@ -17,22 +17,21 @@ export default async function SettingsPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: project }, { data: brands }, { data: competitors }, { data: prompts }, { data: profile }] =
+  const [{ data: project }, { data: brands }, { data: competitors }, { data: prompts }] =
     await Promise.all([
       supabase.from('projects').select('*').eq('id', projectId).single(),
       supabase.from('brands').select('*').eq('project_id', projectId).order('created_at'),
       supabase.from('competitors').select('*').eq('project_id', projectId).order('created_at'),
       supabase.from('prompts').select('*').eq('project_id', projectId).order('created_at'),
-      supabase.from('user_profiles').select('role').eq('id', user.id).single(),
     ])
 
   if (!project) redirect('/projects')
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = project.owner_id === user.id
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-neutral-900 mb-6">Project Settings</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Project Settings</h1>
 
       <Tabs defaultValue="brands">
         <TabsList className="mb-6">

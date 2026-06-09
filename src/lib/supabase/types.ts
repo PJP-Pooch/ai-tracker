@@ -39,18 +39,24 @@ export type Database = {
           name: string
           owner_id: string | null
           created_at: string
+          platforms: string[]
+          schedule_frequency: 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly'
         }
         Insert: {
           id?: string
           name: string
           owner_id?: string | null
           created_at?: string
+          platforms?: string[]
+          schedule_frequency?: 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly'
         }
         Update: {
           id?: string
           name?: string
           owner_id?: string | null
           created_at?: string
+          platforms?: string[]
+          schedule_frequency?: 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly'
         }
         Relationships: []
       }
@@ -129,6 +135,7 @@ export type Database = {
           volume: number
           priority: 'low' | 'medium' | 'high'
           is_active: boolean
+          intent: 'informational' | 'commercial' | 'transactional'
           created_at: string
         }
         Insert: {
@@ -138,6 +145,7 @@ export type Database = {
           volume?: number
           priority?: 'low' | 'medium' | 'high'
           is_active?: boolean
+          intent?: 'informational' | 'commercial' | 'transactional'
           created_at?: string
         }
         Update: {
@@ -147,6 +155,7 @@ export type Database = {
           volume?: number
           priority?: 'low' | 'medium' | 'high'
           is_active?: boolean
+          intent?: 'informational' | 'commercial' | 'transactional'
           created_at?: string
         }
         Relationships: [
@@ -215,6 +224,7 @@ export type Database = {
           sentiment: 'positive' | 'neutral' | 'negative' | null
           mentioned: boolean
           snippet: string | null
+          mention_type: 'top_choice' | 'recommended' | 'mentioned_only' | null
           created_at: string
         }
         Insert: {
@@ -225,6 +235,7 @@ export type Database = {
           sentiment?: 'positive' | 'neutral' | 'negative' | null
           mentioned?: boolean
           snippet?: string | null
+          mention_type?: 'top_choice' | 'recommended' | 'mentioned_only' | null
           created_at?: string
         }
         Update: {
@@ -235,6 +246,7 @@ export type Database = {
           sentiment?: 'positive' | 'neutral' | 'negative' | null
           mentioned?: boolean
           snippet?: string | null
+          mention_type?: 'top_choice' | 'recommended' | 'mentioned_only' | null
           created_at?: string
         }
         Relationships: [
@@ -243,6 +255,13 @@ export type Database = {
             columns: ['run_id']
             isOneToOne: false
             referencedRelation: 'runs'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'mentions_brand_id_fkey'
+            columns: ['brand_id']
+            isOneToOne: false
+            referencedRelation: 'brands'
             referencedColumns: ['id']
           }
         ]
@@ -402,6 +421,19 @@ export type Database = {
       get_sentiment_breakdown: {
         Args: { p_project_id: string; p_date: string; p_brand_id?: string }
         Returns: Json
+      }
+      get_geo_outreach_opportunities: {
+        Args: {
+          p_project_id: string
+        }
+        Returns: Array<{
+          domain: string
+          competitor_citations: number
+          competitors_cited: string
+          prompts_count: number
+          sample_url: string
+          sample_prompt: string
+        }>
       }
     }
     Enums: Record<string, never>

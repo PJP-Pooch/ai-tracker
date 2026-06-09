@@ -17,7 +17,13 @@ export async function GET(req: NextRequest) {
 
   const { data: brands, error } = await supabase
     .from('brands')
-    .select('id, project_id')
+    .select(`
+      id,
+      project_id,
+      projects!inner (
+        platforms
+      )
+    `)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -27,7 +33,10 @@ export async function GET(req: NextRequest) {
   let failures = 0
 
   for (const brand of brands ?? []) {
-    for (const platform of PLATFORMS) {
+    const project = (brand as unknown as { projects: { platforms: string[] } }).projects
+    const platforms = project?.platforms ?? ['chatgpt', 'gemini']
+
+    for (const platform of platforms) {
       try {
         const { data: score, error: rpcError } = await supabase.rpc(
           'compute_visibility_score',

@@ -19,9 +19,9 @@ import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
 import type { CitedDomain } from '@/lib/queries/citations'
 
 const ownerTagStyles: Record<string, string> = {
-  own: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  competitor: 'bg-amber-50 text-amber-700 border-amber-200',
-  'third-party': 'bg-neutral-100 text-neutral-600 border-neutral-200',
+  own: 'bg-primary/10 text-primary border-primary/20',
+  competitor: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  'third-party': 'bg-muted text-muted-foreground border-border',
 }
 
 interface DomainCitationsTableProps {
@@ -49,7 +49,7 @@ export function DomainCitationsTable({ data }: DomainCitationsTableProps) {
             href={`https://${row.original.domain}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium text-neutral-900 hover:text-indigo-600"
+            className="text-sm font-medium text-foreground hover:text-primary"
           >
             {row.original.domain}
           </a>
@@ -60,7 +60,7 @@ export function DomainCitationsTable({ data }: DomainCitationsTableProps) {
       accessorKey: 'citation_count',
       header: 'Citations',
       cell: ({ getValue }) => (
-        <span className="font-semibold text-neutral-900">{(getValue() as number).toLocaleString()}</span>
+        <span className="font-semibold text-foreground">{(getValue() as number).toLocaleString()}</span>
       ),
       size: 90,
     },
@@ -68,7 +68,7 @@ export function DomainCitationsTable({ data }: DomainCitationsTableProps) {
       accessorKey: 'run_count',
       header: 'Run Coverage',
       cell: ({ getValue }) => (
-        <span className="text-sm text-neutral-600">{(getValue() as number)} runs</span>
+        <span className="text-sm text-foreground/80">{(getValue() as number)} runs</span>
       ),
       size: 100,
     },
@@ -101,19 +101,19 @@ export function DomainCitationsTable({ data }: DomainCitationsTableProps) {
 
   return (
     <>
-      <div className="rounded-xl border bg-white overflow-hidden">
+      <div className="rounded-xl border bg-card overflow-hidden">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id} className="bg-neutral-50">
+              <TableRow key={hg.id} className="bg-muted/50">
                 {hg.headers.map((header) => (
                   <TableHead
                     key={header.id}
                     style={{ width: header.getSize() }}
-                    className="text-xs font-semibold text-neutral-500 uppercase tracking-wide"
+                    className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
                   >
                     <button
-                      className="flex items-center gap-1 hover:text-neutral-900"
+                      className="flex items-center gap-1 hover:text-foreground"
                       onClick={header.column.getToggleSortingHandler()}
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
@@ -131,26 +131,35 @@ export function DomainCitationsTable({ data }: DomainCitationsTableProps) {
           <TableBody>
             {table.getRowModel().rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="text-center py-8 text-neutral-400">
+                <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
                   No citation data yet. Run some prompts to populate this.
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="hover:bg-neutral-50">
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const owner = row.original.ownerTag
+                const rowClass = owner === 'own'
+                  ? 'bg-primary/[0.04] dark:bg-primary/[0.08] hover:bg-primary/[0.08] dark:hover:bg-primary/[0.12]'
+                  : owner === 'competitor'
+                    ? 'bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.12]'
+                    : 'hover:bg-muted/30'
+
+                return (
+                  <TableRow key={row.id} className={rowClass}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>
       </div>
       <div className="flex items-center justify-between mt-3">
-        <p className="text-sm text-neutral-500">{data.length} domains</p>
+        <p className="text-sm text-muted-foreground">{data.length} domains</p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
           <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>

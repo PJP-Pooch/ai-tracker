@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/features/nav/sidebar'
+import { Header } from '@/components/features/nav/header'
 import { Toaster } from '@/components/ui/sonner'
 
 export default async function ProjectLayout({
@@ -24,14 +25,34 @@ export default async function ProjectLayout({
 
   if (!project) redirect('/projects')
 
+  // Fetch the latest successful run date for prompts belonging to this project
+  const { data: latestRun } = await supabase
+    .from('runs')
+    .select('run_date, prompts!inner(project_id)')
+    .eq('status', 'success')
+    .eq('prompts.project_id', projectId)
+    .order('run_date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const lastScanned = latestRun?.run_date ?? null
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar projectId={projectId} projectName={project.name} />
-      <main className="flex-1 overflow-y-auto bg-neutral-50">
-        <div className="p-6 max-w-7xl mx-auto">
-          {children}
-        </div>
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header
+          title={project.name}
+          subtitle="AI Visibility Dashboard"
+          projectId={projectId}
+          lastScanned={lastScanned}
+        />
+        <main className="flex-1 overflow-y-auto bg-background">
+          <div className="p-6 max-w-7xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
       <Toaster />
     </div>
   )

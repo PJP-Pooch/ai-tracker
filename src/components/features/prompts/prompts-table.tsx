@@ -23,36 +23,31 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PositionCell } from './position-cell'
 import { SentimentBadge } from './sentiment-badge'
-import { ResponseDrawer } from './response-drawer'
-import type { PromptTableRow } from '@/lib/queries/prompts'
-import type { RunHistory } from '@/lib/queries/prompts'
+import { ResponseDialog } from './response-dialog'
+import type { PromptTableRow, RunHistory } from '@/lib/queries/prompts'
 import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
-
-const priorityColors: Record<string, string> = {
-  high: 'text-red-600 bg-red-50',
-  medium: 'text-amber-600 bg-amber-50',
-  low: 'text-neutral-500 bg-neutral-100',
-}
+import { cn } from '@/lib/utils'
 
 interface PromptsTableProps {
   data: PromptTableRow[]
   projectId: string
+  trackedBrandNames?: string[]
 }
 
-export function PromptsTable({ data, projectId }: PromptsTableProps) {
+export function PromptsTable({ data, projectId, trackedBrandNames = [] }: PromptsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedPrompt, setSelectedPrompt] = useState<PromptTableRow | null>(null)
-  const [drawerRuns, setDrawerRuns] = useState<RunHistory[]>([])
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [dialogRuns, setDialogRuns] = useState<RunHistory[]>([])
+  const [dialogOpen, setDialogOpen] = useState(false)
 
-  async function openDrawer(prompt: PromptTableRow) {
+  async function openDialog(prompt: PromptTableRow) {
     setSelectedPrompt(prompt)
-    setDrawerOpen(true)
+    setDialogOpen(true)
     // Fetch run history on demand
     const res = await fetch(`/api/prompt-runs/${prompt.id}`)
     if (res.ok) {
       const runs = await res.json() as RunHistory[]
-      setDrawerRuns(runs)
+      setDialogRuns(runs)
     }
   }
 
@@ -62,40 +57,38 @@ export function PromptsTable({ data, projectId }: PromptsTableProps) {
       header: 'Prompt',
       cell: ({ row }) => (
         <button
-          onClick={() => openDrawer(row.original)}
-          className="text-left text-sm font-medium text-neutral-900 hover:text-indigo-600 transition-colors"
+          onClick={() => openDialog(row.original)}
+          className="text-left text-sm font-medium text-foreground hover:text-primary transition-colors"
         >
           {row.original.promptText}
         </button>
       ),
-      size: 320,
+      size: 300,
     },
     {
-      accessorKey: 'volume',
-      header: 'AI Volume',
+      accessorKey: 'intent',
+      header: 'Intent',
       cell: ({ getValue }) => {
-        const v = getValue() as number
-        return v > 0 ? (
-          <span className="text-sm text-neutral-600">{v.toLocaleString()}</span>
-        ) : (
-          <span className="text-neutral-300">—</span>
-        )
-      },
-      size: 80,
-    },
-    {
-      accessorKey: 'priority',
-      header: 'Priority',
-      cell: ({ getValue }) => {
-        const p = getValue() as string
+        const intent = getValue() as string
         return (
-          <Badge variant="outline" className={`text-xs ${priorityColors[p] ?? ''}`}>
-            {p}
+          <Badge
+            variant="outline"
+            className={cn(
+              'text-[10px] font-semibold uppercase tracking-wider',
+              intent === 'transactional'
+                ? 'bg-emerald-100/60 text-emerald-700 border-emerald-200'
+                : intent === 'commercial'
+                  ? 'bg-purple-100/60 text-purple-700 border-purple-200'
+                  : 'bg-sky-100/60 text-sky-700 border-sky-200'
+            )}
+          >
+            {intent ?? 'informational'}
           </Badge>
         )
       },
-      size: 80,
+      size: 110,
     },
+
     {
       id: 'chatgpt_position',
       accessorKey: 'chatgpt_position',
@@ -104,9 +97,10 @@ export function PromptsTable({ data, projectId }: PromptsTableProps) {
         <PositionCell
           position={row.original.chatgpt_position}
           mentioned={row.original.chatgpt_mentioned}
+          mentionType={row.original.chatgpt_mention_type}
         />
       ),
-      size: 80,
+      size: 150,
     },
     {
       id: 'chatgpt_sentiment',
@@ -125,9 +119,10 @@ export function PromptsTable({ data, projectId }: PromptsTableProps) {
         <PositionCell
           position={row.original.gemini_position}
           mentioned={row.original.gemini_mentioned}
+          mentionType={row.original.gemini_mention_type}
         />
       ),
-      size: 80,
+      size: 150,
     },
     {
       id: 'gemini_sentiment',
@@ -142,7 +137,7 @@ export function PromptsTable({ data, projectId }: PromptsTableProps) {
       accessorKey: 'citationCount',
       header: 'Citations',
       cell: ({ getValue }) => (
-        <span className="text-sm text-neutral-600">{getValue() as number}</span>
+        <span className="text-sm text-foreground/80">{getValue() as number}</span>
       ),
       size: 70,
     },
@@ -162,20 +157,20 @@ export function PromptsTable({ data, projectId }: PromptsTableProps) {
 
   return (
     <>
-      <div className="rounded-xl border bg-white overflow-hidden">
+      <div className="rounded-xl border bg-card overflow-hidden">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-neutral-50">
+              <TableRow key={headerGroup.id} className="bg-muted/50">
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
                     style={{ width: header.getSize() }}
-                    className="text-xs font-semibold text-neutral-500 uppercase tracking-wide"
+                    className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
                   >
                     {header.isPlaceholder ? null : (
                       <button
-                        className="flex items-center gap-1 hover:text-neutral-900 transition-colors"
+                        className="flex items-center gap-1 hover:text-foreground transition-colors"
                         onClick={header.column.getToggleSortingHandler()}
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}
@@ -198,7 +193,7 @@ export function PromptsTable({ data, projectId }: PromptsTableProps) {
           <TableBody>
             {table.getRowModel().rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="text-center py-12 text-neutral-400">
+                <TableCell colSpan={columns.length} className="text-center py-12 text-muted-foreground">
                   No prompts found. Add prompts in Settings to start tracking.
                 </TableCell>
               </TableRow>
@@ -206,8 +201,8 @@ export function PromptsTable({ data, projectId }: PromptsTableProps) {
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className="hover:bg-neutral-50 cursor-pointer"
-                  onClick={() => openDrawer(row.original)}
+                  className="hover:bg-muted/30 cursor-pointer"
+                  onClick={() => openDialog(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
@@ -223,7 +218,7 @@ export function PromptsTable({ data, projectId }: PromptsTableProps) {
 
       {/* Pagination */}
       <div className="flex items-center justify-between mt-4">
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-muted-foreground">
           {table.getFilteredRowModel().rows.length} prompts
         </p>
         <div className="flex gap-2">
@@ -247,11 +242,13 @@ export function PromptsTable({ data, projectId }: PromptsTableProps) {
       </div>
 
       {selectedPrompt && (
-        <ResponseDrawer
+        <ResponseDialog
           prompt={selectedPrompt}
-          runs={drawerRuns}
-          open={drawerOpen}
-          onOpenChange={setDrawerOpen}
+          runs={dialogRuns}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          trackedBrandNames={trackedBrandNames}
+          projectId={projectId}
         />
       )}
     </>

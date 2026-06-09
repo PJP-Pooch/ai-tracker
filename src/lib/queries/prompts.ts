@@ -6,12 +6,15 @@ export interface PromptTableRow {
   priority: 'low' | 'medium' | 'high'
   volume: number
   isActive: boolean
+  intent: 'informational' | 'commercial' | 'transactional'
   chatgpt_position: number | null
   chatgpt_mentioned: boolean
   chatgpt_sentiment: 'positive' | 'neutral' | 'negative' | null
+  chatgpt_mention_type: 'top_choice' | 'recommended' | 'mentioned_only' | null
   gemini_position: number | null
   gemini_mentioned: boolean
   gemini_sentiment: 'positive' | 'neutral' | 'negative' | null
+  gemini_mention_type: 'top_choice' | 'recommended' | 'mentioned_only' | null
   citationCount: number
   lastRunDate: string | null
 }
@@ -22,6 +25,7 @@ export async function getPromptsWithStats(
     platform?: string
     priority?: string
     search?: string
+    intent?: string
   } = {}
 ): Promise<PromptTableRow[]> {
   const supabase = await createClient()
@@ -34,12 +38,13 @@ export async function getPromptsWithStats(
       priority,
       volume,
       is_active,
+      intent,
       runs (
         id,
         platform,
         run_date,
         status,
-        mentions ( brand_id, position, sentiment, mentioned ),
+        mentions ( brand_id, position, sentiment, mentioned, mention_type ),
         citations ( id )
       )
     `)
@@ -51,6 +56,7 @@ export async function getPromptsWithStats(
   return prompts
     .filter((p) => {
       if (filters.priority && p.priority !== filters.priority) return false
+      if (filters.intent && p.intent !== filters.intent) return false
       if (filters.search && !p.prompt_text.toLowerCase().includes(filters.search.toLowerCase()))
         return false
       return true
@@ -90,21 +96,20 @@ export async function getPromptsWithStats(
         priority: prompt.priority,
         volume: prompt.volume,
         isActive: prompt.is_active,
+        intent: (prompt.intent ?? 'informational') as 'informational' | 'commercial' | 'transactional',
         chatgpt_position: chatgptMention?.position ?? null,
         chatgpt_mentioned: !!chatgptMention,
         chatgpt_sentiment: chatgptMention?.sentiment ?? null,
+        chatgpt_mention_type: chatgptMention?.mention_type as 'top_choice' | 'recommended' | 'mentioned_only' | null,
         gemini_position: geminiMention?.position ?? null,
         gemini_mentioned: !!geminiMention,
         gemini_sentiment: geminiMention?.sentiment ?? null,
+        gemini_mention_type: geminiMention?.mention_type as 'top_choice' | 'recommended' | 'mentioned_only' | null,
         citationCount: allCitationIds.size,
         lastRunDate: allDates[0] ?? null,
       }
     })
-    .filter((row) => {
-      if (filters.platform === 'chatgpt') return row.chatgpt_mentioned || row.chatgpt_position !== null
-      if (filters.platform === 'gemini') return row.gemini_mentioned || row.gemini_position !== null
-      return true
-    })
+    // platform filter is display-only — all prompts track both platforms
 }
 
 export interface RunHistory {
@@ -119,6 +124,7 @@ export interface RunHistory {
     sentiment: string | null
     mentioned: boolean
     snippet: string | null
+    brands: { name: string } | null
   }>
   citations: Array<{
     domain: string
@@ -143,7 +149,7 @@ export async function getPromptRunHistory(
       run_date,
       raw_response,
       status,
-      mentions ( brand_id, position, sentiment, mentioned, snippet ),
+      mentions ( brand_id, position, sentiment, mentioned, snippet, brands!brand_id ( name ) ),
       citations ( domain, url, title, position )
     `)
     .eq('prompt_id', promptId)

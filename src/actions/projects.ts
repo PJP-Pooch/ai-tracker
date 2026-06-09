@@ -27,9 +27,23 @@ export async function updateProject(id: string, formData: FormData) {
   await requireRole('admin')
   const supabase = await createClient()
 
+  const name = (formData.get('name') as string).trim()
+  if (!name) return { error: 'Project name is required' }
+
+  const scheduleFrequency = formData.get('schedule_frequency') as string
+  const platforms = formData.getAll('platforms') as string[]
+
+  if (platforms.length === 0) {
+    return { error: 'At least one platform must be selected' }
+  }
+
   const { error } = await supabase
     .from('projects')
-    .update({ name: (formData.get('name') as string).trim() })
+    .update({
+      name,
+      schedule_frequency: scheduleFrequency as 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly',
+      platforms,
+    })
     .eq('id', id)
 
   if (error) return { error: error.message }

@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BarChart3, Brain, FileSearch, Globe, LayoutDashboard, Settings, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
+import type { Route } from 'next'
 
 interface SidebarProps {
   projectId: string
@@ -11,35 +13,48 @@ interface SidebarProps {
 }
 
 const navItems = (projectId: string) => [
-  { href: `/${projectId}/overview`,     label: 'Overview',     icon: LayoutDashboard },
-  { href: `/${projectId}/prompts`,      label: 'Prompt Tracking', icon: Brain },
-  { href: `/${projectId}/citations`,    label: 'Citations',    icon: Globe },
-  { href: `/${projectId}/competitors`,  label: 'Competitors',  icon: Users },
-  { href: `/${projectId}/settings`,     label: 'Settings',     icon: Settings },
+  { href: `/${projectId}/overview`,    label: 'Overview',        icon: LayoutDashboard },
+  { href: `/${projectId}/prompts`,     label: 'Prompt Tracking', icon: Brain },
+  { href: `/${projectId}/outreach`,    label: 'Outreach Finder', icon: FileSearch },
+  { href: `/${projectId}/citations`,   label: 'Citations',       icon: Globe },
+  { href: `/${projectId}/competitors`, label: 'Competitors',     icon: Users },
+  { href: `/${projectId}/settings`,    label: 'Settings',        icon: Settings },
 ]
 
 export function Sidebar({ projectId, projectName }: SidebarProps) {
   const pathname = usePathname()
 
   return (
-    <aside className="w-60 shrink-0 border-r bg-white flex flex-col h-full">
-      <div className="px-4 py-5 border-b">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-indigo-600" />
-          <span className="font-semibold text-sm truncate">{projectName}</span>
+    <aside className="w-64 shrink-0 flex flex-col h-full bg-sidebar text-sidebar-foreground">
+      <div className="px-4 py-5 border-b border-sidebar-border">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg gradient-indigo flex items-center justify-center shrink-0">
+            <BarChart3 className="w-4 h-4 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 leading-none mb-0.5">
+              AI Tracker
+            </p>
+            <p className="text-sm font-semibold text-sidebar-foreground truncate leading-tight">
+              {projectName}
+            </p>
+          </div>
         </div>
       </div>
 
-      <nav className="flex-1 px-2 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-0.5">
+        <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
+          Analytics
+        </p>
         {navItems(projectId).map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
-            href={href}
+            href={href as Route}
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
               pathname.startsWith(href)
-                ? 'bg-indigo-50 text-indigo-700 font-medium'
-                : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+                ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium shadow-sm'
+                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
           >
             <Icon className="w-4 h-4 shrink-0" />
@@ -48,14 +63,17 @@ export function Sidebar({ projectId, projectName }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="px-4 py-3 border-t">
+      <div className="px-3 py-4 border-t border-sidebar-border space-y-1">
         <Link
           href="/projects"
-          className="flex items-center gap-2 text-xs text-neutral-500 hover:text-neutral-700"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
         >
-          <FileSearch className="w-3 h-3" />
+          <FileSearch className="w-3.5 h-3.5" />
           All Projects
         </Link>
+        <div className="px-3 py-2">
+          <ThemeToggle />
+        </div>
       </div>
     </aside>
   )

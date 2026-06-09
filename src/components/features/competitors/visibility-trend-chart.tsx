@@ -4,17 +4,20 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
 } from 'recharts'
+import { useTheme } from 'next-themes'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CHART_COLORS } from '@/lib/chart-colors'
 import type { CompetitorScore } from '@/lib/queries/competitors'
-
-const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4']
 
 interface VisibilityTrendChartProps {
   competitors: CompetitorScore[]
 }
 
 export function VisibilityTrendChart({ competitors: brands }: VisibilityTrendChartProps) {
-  // Pivot: [{ date, BrandA: score, BrandB: score }]
+  const { resolvedTheme } = useTheme()
+  const colors = resolvedTheme === 'dark' ? CHART_COLORS.dark : CHART_COLORS.light
+  const palette = [colors.primary, colors.quaternary, colors.tertiary, colors.secondary, colors.quinary]
+
   const allDates = [...new Set(brands.flatMap((b) => b.trendData.map((d) => d.date)))].sort()
 
   const chartData = allDates.map((date) => {
@@ -29,7 +32,7 @@ export function VisibilityTrendChart({ competitors: brands }: VisibilityTrendCha
   if (chartData.length === 0) {
     return (
       <Card>
-        <CardContent className="flex items-center justify-center py-12 text-neutral-400 text-sm">
+        <CardContent className="flex items-center justify-center py-12 text-muted-foreground text-sm">
           No trend data yet.
         </CardContent>
       </Card>
@@ -44,10 +47,10 @@ export function VisibilityTrendChart({ competitors: brands }: VisibilityTrendCha
       <CardContent>
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              tick={{ fontSize: 11, fill: colors.axis }}
               tickLine={false}
               tickFormatter={(d: string) =>
                 new Date(d).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })
@@ -55,12 +58,18 @@ export function VisibilityTrendChart({ competitors: brands }: VisibilityTrendCha
             />
             <YAxis
               domain={[0, 100]}
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              tick={{ fontSize: 11, fill: colors.axis }}
               tickLine={false}
               axisLine={false}
             />
             <Tooltip
-              contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+              contentStyle={{
+                borderRadius: 8,
+                border: `1px solid ${colors.tooltip.border}`,
+                fontSize: 12,
+                background: colors.tooltip.bg,
+                color: colors.tooltip.color,
+              }}
               labelFormatter={(l) => typeof l === 'string' ? new Date(l).toLocaleDateString() : l}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -69,10 +78,9 @@ export function VisibilityTrendChart({ competitors: brands }: VisibilityTrendCha
                 key={brand.brandId}
                 type="monotone"
                 dataKey={brand.brandName}
-                stroke={COLORS[i % COLORS.length]}
+                stroke={palette[i % palette.length]}
                 strokeWidth={brand.isOwn ? 2.5 : 1.5}
                 dot={false}
-                strokeDasharray={brand.isOwn ? undefined : undefined}
               />
             ))}
           </LineChart>

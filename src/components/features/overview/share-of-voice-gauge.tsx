@@ -1,14 +1,18 @@
 'use client'
 
 import { RadialBarChart, RadialBar, ResponsiveContainer, PolarAngleAxis } from 'recharts'
+import { useTheme } from 'next-themes'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CHART_COLORS } from '@/lib/chart-colors'
 
 interface ShareOfVoiceGaugeProps {
   value: number
 }
 
 export function ShareOfVoiceGauge({ value }: ShareOfVoiceGaugeProps) {
-  const data = [{ value, fill: '#6366f1' }]
+  const { resolvedTheme } = useTheme()
+  const colors = resolvedTheme === 'dark' ? CHART_COLORS.dark : CHART_COLORS.light
+  const data = [{ value, fill: colors.primary }]
 
   return (
     <Card>
@@ -31,17 +35,17 @@ export function ShareOfVoiceGauge({ value }: ShareOfVoiceGaugeProps) {
               <RadialBar
                 dataKey="value"
                 cornerRadius={8}
-                background={{ fill: '#f3f4f6' }}
+                background={{ fill: colors.gaugeTrack }}
                 angleAxisId={0}
               />
             </RadialBarChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-4xl font-bold text-neutral-900">{value}</span>
-            <span className="text-sm text-neutral-400">%</span>
+            <span className="text-4xl font-bold text-foreground">{value}</span>
+            <span className="text-sm text-muted-foreground">%</span>
           </div>
         </div>
-        <p className="text-xs text-neutral-400 mt-2 text-center">
+        <p className="text-xs text-muted-foreground mt-2 text-center">
           Your brand&apos;s share of total AI mentions today
         </p>
       </CardContent>

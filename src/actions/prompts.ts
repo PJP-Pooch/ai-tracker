@@ -13,11 +13,13 @@ export async function createPrompt(projectId: string, formData: FormData) {
     prompt_text: (formData.get('prompt_text') as string).trim(),
     priority: ((formData.get('priority') as string) || 'medium') as 'low' | 'medium' | 'high',
     volume: parseInt(formData.get('volume') as string) || 0,
+    intent: ((formData.get('intent') as string) || 'informational') as 'informational' | 'commercial' | 'transactional',
   })
 
   if (error) return { error: error.message }
 
   revalidatePath(`/${projectId}/settings`)
+  revalidatePath(`/${projectId}/prompts`)
   return { success: true }
 }
 
@@ -36,13 +38,38 @@ export async function bulkCreatePrompts(projectId: string, promptLines: string) 
     project_id: projectId,
     prompt_text: text,
     priority: 'medium' as const,
+    intent: 'informational' as const,
   }))
 
   const { error } = await supabase.from('prompts').insert(inserts)
   if (error) return { error: error.message }
 
   revalidatePath(`/${projectId}/settings`)
+  revalidatePath(`/${projectId}/prompts`)
   return { success: true, count: lines.length }
+}
+
+export async function bulkCreatePromptsWithOptions(
+  projectId: string,
+  prompts: Array<{ prompt_text: string; intent?: string; priority?: string; volume?: number }>
+) {
+  await requireRole('admin')
+  const supabase = await createClient()
+
+  const inserts = prompts.map((p) => ({
+    project_id: projectId,
+    prompt_text: p.prompt_text.trim(),
+    intent: (p.intent || 'informational') as 'informational' | 'commercial' | 'transactional',
+    priority: (p.priority || 'medium') as 'low' | 'medium' | 'high',
+    volume: p.volume || 0,
+  }))
+
+  const { error } = await supabase.from('prompts').insert(inserts)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/${projectId}/settings`)
+  revalidatePath(`/${projectId}/prompts`)
+  return { success: true, count: prompts.length }
 }
 
 export async function updatePrompt(id: string, projectId: string, formData: FormData) {
@@ -54,11 +81,13 @@ export async function updatePrompt(id: string, projectId: string, formData: Form
     priority: (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium',
     volume: parseInt(formData.get('volume') as string) || 0,
     is_active: formData.get('is_active') !== 'false',
+    intent: (formData.get('intent') as 'informational' | 'commercial' | 'transactional') || 'informational',
   }).eq('id', id)
 
   if (error) return { error: error.message }
 
   revalidatePath(`/${projectId}/settings`)
+  revalidatePath(`/${projectId}/prompts`)
   return { success: true }
 }
 
@@ -70,5 +99,6 @@ export async function deletePrompt(id: string, projectId: string) {
   if (error) return { error: error.message }
 
   revalidatePath(`/${projectId}/settings`)
+  revalidatePath(`/${projectId}/prompts`)
   return { success: true }
 }

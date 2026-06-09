@@ -22,14 +22,23 @@ interface PromptWithRelations {
   project_id: string
   brands: BrandRow[]
   competitors: CompetitorRow[]
+  platforms?: string[]
 }
 
-const PLATFORMS: LLMPlatform[] = ['chat_gpt', 'gemini']
+export interface PipelineResult {
+  succeeded: number
+  failed: number
+  errors: string[]
+}
 
-export async function runPromptPipeline(prompt: PromptWithRelations): Promise<void> {
+export async function runPromptPipeline(prompt: PromptWithRelations): Promise<PipelineResult> {
   const supabase = createAdminClient()
+  const result: PipelineResult = { succeeded: 0, failed: 0, errors: [] }
 
-  for (const platform of PLATFORMS) {
+  const rawPlatforms = prompt.platforms ?? ['chatgpt', 'gemini']
+  const platformsToRun = rawPlatforms.map(p => p === 'chatgpt' ? 'chat_gpt' : p) as LLMPlatform[]
+
+  for (const platform of platformsToRun) {
     const modelName = PLATFORM_MODELS[platform]
     let runId: string | null = null
 
@@ -104,7 +113,7 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<vo
       )
 
       // Build mention insert rows
-      const mentionRows = mentionInputs.map((m, idx) => {
+      const mentionRows = mentionInputs.map((m) => {
         const sentimentIdx = mentionedBrands.findIndex((mb) => mb.brand.id === m.brand.id)
         const sentiment =
           m.parsed.mentioned && sentimentIdx >= 0
@@ -118,12 +127,13 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<vo
           position: m.parsed.position,
           sentiment,
           snippet: m.parsed.snippet,
+          mention_type: m.parsed.mentionType,
         }
       })
 
       // Batch insert mentions and citations, then update run status
       await Promise.all([
-        supabase.from('mentions').insert(mentionRows),
+        mentionRows.length > 0 ? supabase.from('mentions').insert(mentionRows) : Promise.resolve(),
         enrichedCitations.length > 0
           ? supabase.from('citations').insert(enrichedCitations)
           : Promise.resolve(),
@@ -136,9 +146,13 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<vo
           })
           .eq('id', runId),
       ])
+
+      result.succeeded++
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
       console.error(`Run failed for prompt ${prompt.id} / ${platform}:`, message)
+      result.failed++
+      result.errors.push(`${platform}: ${message}`)
 
       if (runId) {
         await supabase
@@ -148,4 +162,6 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<vo
       }
     }
   }
+
+  return result
 }

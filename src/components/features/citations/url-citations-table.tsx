@@ -30,12 +30,12 @@ export function UrlCitationsTable({ data }: UrlCitationsTableProps) {
             href={row.original.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-sm text-indigo-600 hover:underline truncate max-w-xs"
+            className="flex items-center gap-1 text-sm text-primary hover:underline truncate max-w-xs"
           >
             {row.original.title || row.original.url}
             <ExternalLink className="w-3 h-3 shrink-0" />
           </a>
-          <span className="text-xs text-neutral-400">{row.original.domain}</span>
+          <span className="text-xs text-muted-foreground/70">{row.original.domain}</span>
         </div>
       ),
     },
@@ -43,7 +43,7 @@ export function UrlCitationsTable({ data }: UrlCitationsTableProps) {
       accessorKey: 'citation_count',
       header: 'Citations',
       cell: ({ getValue }) => (
-        <span className="font-semibold text-neutral-900">{(getValue() as number).toLocaleString()}</span>
+        <span className="font-semibold text-foreground">{(getValue() as number).toLocaleString()}</span>
       ),
       size: 80,
     },
@@ -51,7 +51,7 @@ export function UrlCitationsTable({ data }: UrlCitationsTableProps) {
       id: 'owner',
       header: 'Owner',
       cell: ({ row }) => (
-        <span className="text-sm text-neutral-600">
+        <span className="text-sm text-foreground/80">
           {row.original.brand_name
             ? `Your Brand`
             : row.original.competitor_name
@@ -76,14 +76,14 @@ export function UrlCitationsTable({ data }: UrlCitationsTableProps) {
 
   return (
     <>
-      <div className="rounded-xl border bg-white overflow-hidden">
+      <div className="rounded-xl border bg-card overflow-hidden">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id} className="bg-neutral-50">
+              <TableRow key={hg.id} className="bg-muted/50">
                 {hg.headers.map((header) => (
-                  <TableHead key={header.id} className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
-                    <button className="flex items-center gap-1 hover:text-neutral-900" onClick={header.column.getToggleSortingHandler()}>
+                  <TableHead key={header.id} className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    <button className="flex items-center gap-1 hover:text-foreground" onClick={header.column.getToggleSortingHandler()}>
                       {flexRender(header.column.columnDef.header, header.getContext())}
                       {header.column.getCanSort() && (
                         header.column.getIsSorted() === 'asc' ? <ChevronUp className="w-3 h-3" /> :
@@ -99,24 +99,34 @@ export function UrlCitationsTable({ data }: UrlCitationsTableProps) {
           <TableBody>
             {table.getRowModel().rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="text-center py-8 text-neutral-400">
+                <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
                   No URL citation data yet.
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="hover:bg-neutral-50">
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const isOwn = !!row.original.brand_name
+                const isCompetitor = !!row.original.competitor_name
+                const rowClass = isOwn
+                  ? 'bg-primary/[0.04] dark:bg-primary/[0.08] hover:bg-primary/[0.08] dark:hover:bg-primary/[0.12]'
+                  : isCompetitor
+                    ? 'bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.12]'
+                    : 'hover:bg-muted/30'
+
+                return (
+                  <TableRow key={row.id} className={rowClass}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    ))}
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>
       </div>
       <div className="flex items-center justify-between mt-3">
-        <p className="text-sm text-neutral-500">{data.length} URLs</p>
+        <p className="text-sm text-muted-foreground">{data.length} URLs</p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
           <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>

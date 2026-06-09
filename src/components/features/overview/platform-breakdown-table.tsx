@@ -34,7 +34,7 @@ export function PlatformBreakdownTable({ data }: PlatformBreakdownTableProps) {
           <TableBody>
             {data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-neutral-400 text-sm py-8">
+                <TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-8">
                   No platform data yet.
                 </TableCell>
               </TableRow>

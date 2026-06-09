@@ -18,124 +18,161 @@ export interface CompetitorScore {
   trendData: Array<{ date: string; score: number }>
 }
 
+export function mentionedInResponse(text: string, name: string, domain: string): boolean {
+  const lower = text.toLowerCase()
+  return lower.includes(name.toLowerCase()) || lower.includes(domain.toLowerCase().replace(/^www\./, ''))
+}
+
 export async function getCompetitorVisibility(
   projectId: string,
   days = 30,
   platform?: string
 ): Promise<CompetitorScore[]> {
   const supabase = await createClient()
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0]
-  const today = new Date().toISOString().split('T')[0]
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0]
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+  const halfwayPoint = new Date(Date.now() - (days / 2) * 24 * 60 * 60 * 1000).toISOString()
 
-  const [{ data: brands }, { data: competitors }, { data: scores }, { data: citations }] =
-    await Promise.all([
-      supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
-      supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
-      supabase
-        .from('visibility_scores')
-        .select('brand_id, date, platform, total_score')
-        .eq('project_id', projectId)
-        .gte('date', since)
-        .order('date', { ascending: true }),
-      supabase
-        .from('citations')
-        .select('brand_id')
-        .not('brand_id', 'is', null),
-    ])
+  const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
+    supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
+    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
+    supabase.from('prompts').select('id').eq('project_id', projectId),
+  ])
 
-  // Build unified brand list from brands + competitors tracked as brands
-  const allBrands = [
-    ...(brands ?? []).map((b) => ({ ...b, isOwn: b.is_primary })),
+  const promptIds = (prompts ?? []).map((p) => p.id)
+  if (promptIds.length === 0) return []
+
+  const query = supabase
+    .from('runs')
+    .select('id, platform, run_date, raw_response, citations(brand_id, competitor_id)')
+    .in('prompt_id', promptIds)
+    .eq('status', 'success')
+    .gte('run_date', since)
+    .not('raw_response', 'is', null)
+    .neq('raw_response', '')
+
+  const { data: runs } = await (platform ? query.eq('platform', platform as 'chatgpt' | 'gemini') : query)
+
+  if (!runs || runs.length === 0) {
+    // Return brands/competitors with zero scores so cards still render
+    return [
+      ...(brands ?? []).map((b) => toZeroScore(b.id, b.name, b.domain, b.is_primary)),
+      ...(competitors ?? []).map((c) => toZeroScore(c.id, c.name, c.domain, false)),
+    ]
+  }
+
+  // All entities to track
+  const allEntities = [
+    ...(brands ?? []).map((b) => ({ id: b.id, name: b.name, domain: b.domain, isOwn: b.is_primary })),
+    ...(competitors ?? []).map((c) => ({ id: c.id, name: c.name, domain: c.domain, isOwn: false })),
   ]
 
-  return allBrands.map((brand) => {
-    const brandScores = (scores ?? []).filter(
-      (s) =>
-        s.brand_id === brand.id &&
-        (platform ? s.platform === platform : true)
-    )
+  return allEntities.map((entity) => {
+    const recentRuns = runs.filter((r) => r.run_date >= halfwayPoint)
+    const olderRuns = runs.filter((r) => r.run_date < halfwayPoint)
 
-    const trendData = brandScores.map((s) => ({
-      date: s.date,
-      score: s.total_score ?? 0,
-    }))
+    const mentionRate = (subset: typeof runs) => {
+      if (subset.length === 0) return 0
+      const mentioned = subset.filter(
+        (r) => r.raw_response && mentionedInResponse(r.raw_response, entity.name, entity.domain)
+      ).length
+      return Math.round((mentioned / subset.length) * 100)
+    }
 
-    // Latest score vs 7-days-ago score
-    const latestScore = brandScores
-      .filter((s) => s.date === today)
-      .reduce((sum, s) => sum + (s.total_score ?? 0), 0) /
-      Math.max(1, brandScores.filter((s) => s.date === today).length)
+    const currentScore = mentionRate(recentRuns)
+    const previousScore = mentionRate(olderRuns)
 
-    const previousScore = brandScores
-      .filter((s) => s.date === sevenDaysAgo)
-      .reduce((sum, s) => sum + (s.total_score ?? 0), 0) /
-      Math.max(1, brandScores.filter((s) => s.date === sevenDaysAgo).length)
+    // Citation count — brands use brand_id, competitors use competitor_id
+    const citationCount = runs.reduce((sum, r) => {
+      const hits = (r.citations as Array<{ brand_id: string | null; competitor_id: string | null }>).filter(
+        (c) => c.brand_id === entity.id || c.competitor_id === entity.id
+      ).length
+      return sum + hits
+    }, 0)
 
-    const citationCount = (citations ?? []).filter(
-      (c) => c.brand_id === brand.id
-    ).length
+    // Trend: group runs by date, compute daily mention rate
+    const byDate = new Map<string, { total: number; mentioned: number }>()
+    for (const r of runs) {
+      const date = r.run_date.split('T')[0]
+      const entry = byDate.get(date) ?? { total: 0, mentioned: 0 }
+      entry.total++
+      if (r.raw_response && mentionedInResponse(r.raw_response, entity.name, entity.domain)) {
+        entry.mentioned++
+      }
+      byDate.set(date, entry)
+    }
+
+    const trendData = Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, { total, mentioned }]) => ({
+        date,
+        score: total > 0 ? Math.round((mentioned / total) * 100) : 0,
+      }))
 
     return {
-      brandId: brand.id,
-      brandName: brand.name,
-      domain: brand.domain,
-      isOwn: brand.isOwn,
-      currentScore: Math.round(latestScore),
-      previousScore: Math.round(previousScore),
-      delta: Math.round(latestScore - previousScore),
-      promptCoverage: 0, // computed below if needed
+      brandId: entity.id,
+      brandName: entity.name,
+      domain: entity.domain,
+      isOwn: entity.isOwn,
+      currentScore,
+      previousScore,
+      delta: currentScore - previousScore,
+      promptCoverage: mentionRate(runs),
       citationCount,
       trendData,
     }
   })
 }
 
+function toZeroScore(id: string, name: string, domain: string, isOwn: boolean): CompetitorScore {
+  return {
+    brandId: id, brandName: name, domain, isOwn,
+    currentScore: 0, previousScore: 0, delta: 0,
+    promptCoverage: 0, citationCount: 0, trendData: [],
+  }
+}
+
 export async function getShareOfVoice(
   projectId: string,
-  date?: string
 ): Promise<Array<{ name: string; share: number; isOwn: boolean }>> {
   const supabase = await createClient()
-  const targetDate = date ?? new Date().toISOString().split('T')[0]
 
-  const [{ data: brands }, { data: runs }] = await Promise.all([
+  const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
     supabase.from('brands').select('id, name, is_primary').eq('project_id', projectId),
-    supabase
-      .from('runs')
-      .select(`
-        id,
-        mentions ( brand_id, mentioned )
-      `)
-      .in(
-        'prompt_id',
-        (await supabase.from('prompts').select('id').eq('project_id', projectId)).data?.map(
-          (p) => p.id
-        ) ?? []
-      )
-      .gte('run_date', `${targetDate}T00:00:00`)
-      .lt('run_date', `${targetDate}T23:59:59`)
-      .eq('status', 'success'),
+    supabase.from('competitors').select('id, name').eq('project_id', projectId),
+    supabase.from('prompts').select('id').eq('project_id', projectId),
   ])
 
-  if (!brands || !runs) return []
+  const promptIds = (prompts ?? []).map((p) => p.id)
+  if (promptIds.length === 0) return []
+
+  const { data: mentions } = await supabase
+    .from('mentions')
+    .select('brand_id, mentioned')
+    .in(
+      'run_id',
+      (
+        await supabase
+          .from('runs')
+          .select('id')
+          .in('prompt_id', promptIds)
+          .eq('status', 'success')
+      ).data?.map((r) => r.id) ?? []
+    )
+    .eq('mentioned', true)
+
+  if (!mentions || mentions.length === 0) return []
 
   const mentionCounts: Record<string, number> = {}
-  for (const run of runs) {
-    for (const mention of run.mentions ?? []) {
-      if (mention.mentioned && mention.brand_id) {
-        mentionCounts[mention.brand_id] = (mentionCounts[mention.brand_id] ?? 0) + 1
-      }
+  for (const m of mentions) {
+    if (m.brand_id) {
+      mentionCounts[m.brand_id] = (mentionCounts[m.brand_id] ?? 0) + 1
     }
   }
 
   const total = Object.values(mentionCounts).reduce((a, b) => a + b, 0)
   if (total === 0) return []
 
-  return brands
+  return (brands ?? [])
     .filter((b) => mentionCounts[b.id] > 0)
     .map((b) => ({
       name: b.name,
@@ -143,4 +180,115 @@ export async function getShareOfVoice(
       isOwn: b.is_primary,
     }))
     .sort((a, b) => b.share - a.share)
+}
+
+export interface CompetitorGapStatus {
+  name: string
+  mentioned: boolean
+  cited: boolean
+}
+
+export interface GapMatrixRow {
+  promptId: string
+  promptText: string
+  intent: 'informational' | 'commercial' | 'transactional'
+  chatgpt: {
+    own: CompetitorGapStatus
+    competitors: CompetitorGapStatus[]
+  } | null
+  gemini: {
+    own: CompetitorGapStatus
+    competitors: CompetitorGapStatus[]
+  } | null
+}
+
+export async function getCompetitorGapMatrix(projectId: string): Promise<GapMatrixRow[]> {
+  const supabase = await createClient()
+
+  const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
+    supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
+    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
+    supabase.from('prompts').select('id, prompt_text, intent').eq('project_id', projectId).eq('is_active', true),
+  ])
+
+  const ownBrand = brands?.find((b) => b.is_primary)
+  if (!ownBrand || !prompts || prompts.length === 0) return []
+
+  const promptIds = prompts.map((p) => p.id)
+
+  // Fetch all runs for these prompts
+  const { data: runs } = await supabase
+    .from('runs')
+    .select(`
+      id,
+      prompt_id,
+      platform,
+      run_date,
+      raw_response,
+      mentions ( brand_id, mentioned ),
+      citations ( brand_id, competitor_id )
+    `)
+    .in('prompt_id', promptIds)
+    .eq('status', 'success')
+    .order('run_date', { ascending: false })
+
+  if (!runs) return []
+
+  // Group by prompt_id and platform to get the latest run
+  const latestRuns = new Map<string, typeof runs[0]>()
+  for (const r of runs) {
+    const key = `${r.prompt_id}_${r.platform}`
+    if (!latestRuns.has(key)) {
+      latestRuns.set(key, r)
+    }
+  }
+
+  const competitorList = competitors ?? []
+
+  return prompts.map((p) => {
+    const chatgptRun = latestRuns.get(`${p.id}_chatgpt`)
+    const geminiRun = latestRuns.get(`${p.id}_gemini`)
+
+    const getStatus = (run: typeof runs[0] | undefined) => {
+      if (!run) return null
+
+      // Own brand
+      const ownMention = (run.mentions as Array<{ brand_id: string; mentioned: boolean }>)
+        ?.find((m) => m.brand_id === ownBrand.id)
+      const ownCited = (run.citations as Array<{ brand_id: string | null }>)
+        ?.some((c) => c.brand_id === ownBrand.id)
+
+      const ownStatus: CompetitorGapStatus = {
+        name: ownBrand.name,
+        mentioned: ownMention?.mentioned ?? false,
+        cited: ownCited ?? false,
+      }
+
+      // Competitors
+      const compStatuses = competitorList.map((c) => {
+        const compMentioned = run.raw_response ? mentionedInResponse(run.raw_response, c.name, c.domain) : false
+        const compCited = (run.citations as Array<{ competitor_id: string | null }>)
+          ?.some((cit) => cit.competitor_id === c.id)
+
+        return {
+          name: c.name,
+          mentioned: compMentioned,
+          cited: compCited,
+        }
+      })
+
+      return {
+        own: ownStatus,
+        competitors: compStatuses,
+      }
+    }
+
+    return {
+      promptId: p.id,
+      promptText: p.prompt_text,
+      intent: (p.intent ?? 'informational') as 'informational' | 'commercial' | 'transactional',
+      chatgpt: getStatus(chatgptRun),
+      gemini: getStatus(geminiRun),
+    }
+  })
 }

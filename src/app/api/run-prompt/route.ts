@@ -10,16 +10,6 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Admin required' }, { status: 403 })
-  }
-
   const body = await req.json() as { promptId: string }
   const { promptId } = body
 
@@ -36,6 +26,7 @@ export async function POST(req: NextRequest) {
       prompt_text,
       project_id,
       projects!inner (
+        platforms,
         brands ( id, name, domain ),
         competitors ( id, domain )
       )
@@ -47,7 +38,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Prompt not found' }, { status: 404 })
   }
 
-  const project = (prompt as unknown as { projects: { brands: { id: string; name: string; domain: string }[]; competitors: { id: string; domain: string }[] } }).projects
+  const project = (prompt as unknown as {
+    projects: {
+      platforms: string[]
+      brands: { id: string; name: string; domain: string }[]
+      competitors: { id: string; domain: string }[]
+    }
+  }).projects
 
   await runPromptPipeline({
     id: prompt.id,
@@ -55,6 +52,7 @@ export async function POST(req: NextRequest) {
     project_id: prompt.project_id,
     brands: project?.brands ?? [],
     competitors: project?.competitors ?? [],
+    platforms: project?.platforms ?? ['chatgpt', 'gemini'],
   })
 
   return NextResponse.json({ success: true })
