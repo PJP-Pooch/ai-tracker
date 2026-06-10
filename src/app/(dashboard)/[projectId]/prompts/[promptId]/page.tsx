@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { createDbClient } from '@/lib/supabase/db'
+import { redirect, notFound } from 'next/navigation'
 import { getPromptRunHistory } from '@/lib/queries/prompts'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
@@ -14,28 +15,29 @@ export default async function PromptDetailPage({
 }) {
   const { projectId, promptId } = await params
   const supabase = await createClient()
+  const db = await createDbClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: prompt } = await supabase
+  const { data: prompt } = await db
     .from('prompts')
     .select('id, prompt_text, priority, volume, intent')
     .eq('id', promptId)
     .single()
 
-  if (!prompt) redirect(`/${projectId}/prompts`)
+  if (!prompt) notFound()
 
   const [runs, { data: primaryBrand }, { data: brands }, { data: competitors }] = await Promise.all([
     getPromptRunHistory(promptId, 30),
-    supabase
+    db
       .from('brands')
       .select('id')
       .eq('project_id', projectId)
       .eq('is_primary', true)
       .maybeSingle(),
-    supabase.from('brands').select('name').eq('project_id', projectId),
-    supabase.from('competitors').select('name').eq('project_id', projectId),
+    db.from('brands').select('name').eq('project_id', projectId),
+    db.from('competitors').select('name').eq('project_id', projectId),
   ])
 
   const brandId = primaryBrand?.id ?? null

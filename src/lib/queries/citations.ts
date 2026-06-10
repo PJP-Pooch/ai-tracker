@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createDbClient } from '@/lib/supabase/db'
 
 export interface CitedDomain {
   domain: string
@@ -30,7 +30,7 @@ export async function getTopCitedDomains(
   projectId: string,
   filters: { platform?: string; dateFrom?: string; dateTo?: string; limit?: number } = {}
 ): Promise<CitedDomain[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   const { data, error } = await supabase.rpc('get_top_cited_domains', {
     p_project_id: projectId,
@@ -57,7 +57,7 @@ export async function getTopCitedUrls(
   projectId: string,
   filters: { domain?: string; platform?: string; limit?: number } = {}
 ): Promise<CitedUrl[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   const { data, error } = await supabase.rpc('get_top_cited_urls', {
     p_project_id: projectId,
@@ -72,7 +72,7 @@ export async function getTopCitedUrls(
 }
 
 export async function getCitationOverlap(projectId: string): Promise<CitationOverlapEntry[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   const { data: runs } = await supabase
     .from('runs')

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createDbClient } from '@/lib/supabase/db'
 
 export interface PromptTableRow {
   id: string
@@ -28,7 +28,7 @@ export async function getPromptsWithStats(
     intent?: string
   } = {}
 ): Promise<PromptTableRow[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   const { data: prompts } = await supabase
     .from('prompts')
@@ -139,7 +139,7 @@ export async function getPromptRunHistory(
   promptId: string,
   days = 30
 ): Promise<RunHistory[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
   const { data } = await supabase

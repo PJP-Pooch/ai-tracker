@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createDbClient } from '@/lib/supabase/db'
 import { mentionedInResponse } from '@/lib/queries/competitors'
 
 export interface ExecutiveKPIs {
@@ -30,7 +30,7 @@ export interface PlatformBreakdownRow {
 }
 
 export async function getExecutiveKPIs(projectId: string): Promise<ExecutiveKPIs> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
   const { data: primaryBrand } = await supabase
@@ -173,7 +173,7 @@ export async function getVisibilityTrend(
   projectId: string,
   days = 30
 ): Promise<VisibilityTrendPoint[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
   const [{ data: primaryBrand }, { data: competitors }] = await Promise.all([
@@ -253,7 +253,7 @@ export async function getVisibilityTrend(
 }
 
 export async function getPlatformBreakdown(projectId: string): Promise<PlatformBreakdownRow[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   const { data: primaryBrand } = await supabase
     .from('brands')
@@ -322,7 +322,7 @@ export interface IntentVisibility {
 }
 
 export async function getIntentVisibility(projectId: string): Promise<IntentVisibility[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   const { data: primaryBrand } = await supabase
     .from('brands')

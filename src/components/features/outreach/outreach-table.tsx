@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import type { OutreachOpportunity } from '@/lib/queries/outreach'
-import { ChevronDown, ChevronUp, ChevronsUpDown, Copy, Link2, Search } from 'lucide-react'
+import { ChevronDown, ChevronUp, ChevronsUpDown, Copy, Link2, Search, Download } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface OutreachTableProps {
@@ -37,6 +37,48 @@ export function OutreachTable({ data }: OutreachTableProps) {
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text)
     toast.success('Copied URL to clipboard!')
+  }
+
+  function handleExportCSV() {
+    const rowsToExport = table.getFilteredRowModel().rows.map((row) => row.original)
+    
+    const headers = [
+      'Outreach Target Domain',
+      'Competitor Citations',
+      'Brands Mentioned',
+      'Triggering Prompts',
+      'Sample Prompt',
+      'Sample Recommendation URL',
+    ]
+    
+    const escapeCSV = (val: any) => {
+      if (val === null || val === undefined) return ''
+      const stringVal = String(val)
+      return `"${stringVal.replace(/"/g, '""')}"`
+    }
+    
+    const csvRows = [
+      headers.join(','),
+      ...rowsToExport.map((row) => [
+        escapeCSV(row.domain),
+        row.competitorCitations,
+        escapeCSV(row.competitorsCited),
+        row.promptsCount,
+        escapeCSV(row.samplePrompt),
+        escapeCSV(row.sampleUrl),
+      ].join(',')),
+    ]
+    
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'outreach_opportunities.csv')
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const columns: ColumnDef<OutreachOpportunity>[] = [
@@ -85,6 +127,16 @@ export function OutreachTable({ data }: OutreachTableProps) {
       size: 100,
     },
     {
+      accessorKey: 'samplePrompt',
+      header: 'Sample Prompt',
+      cell: ({ getValue }) => (
+        <div className="max-w-xs truncate" title={getValue() as string}>
+          <span className="text-xs text-muted-foreground">{getValue() as string || '-'}</span>
+        </div>
+      ),
+      size: 200,
+    },
+    {
       accessorKey: 'sampleUrl',
       header: 'Sample Recommendation URL',
       cell: ({ row }) => (
@@ -121,7 +173,7 @@ export function OutreachTable({ data }: OutreachTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <Input
@@ -131,6 +183,10 @@ export function OutreachTable({ data }: OutreachTableProps) {
             className="pl-9"
           />
         </div>
+        <Button variant="outline" size="sm" onClick={handleExportCSV} className="flex items-center gap-1.5 shrink-0">
+          <Download className="w-3.5 h-3.5" />
+          Export to CSV
+        </Button>
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">

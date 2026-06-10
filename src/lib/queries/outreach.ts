@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createDbClient } from '@/lib/supabase/db'
 
 export interface OutreachOpportunity {
   domain: string
@@ -12,7 +12,7 @@ export interface OutreachOpportunity {
 export async function getOutreachOpportunities(
   projectId: string
 ): Promise<OutreachOpportunity[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   // 1. Fetch brands and competitors for the project
   const [{ data: brands }, { data: competitors }] = await Promise.all([

@@ -4,7 +4,7 @@ import { ShareOfVoiceGauge } from '@/components/features/overview/share-of-voice
 import { VisibilityTrendChart } from '@/components/features/overview/visibility-trend-chart'
 import { PlatformBreakdownTable } from '@/components/features/overview/platform-breakdown-table'
 import { IntentBreakdown } from '@/components/features/overview/intent-breakdown'
-import { createClient } from '@/lib/supabase/server'
+import { createDbClient } from '@/lib/supabase/db'
 
 export default async function OverviewPage({
   params,
@@ -12,7 +12,7 @@ export default async function OverviewPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   const [kpis, trend, platformBreakdown, intentVisibility, primaryBrand] = await Promise.all([
     getExecutiveKPIs(projectId),

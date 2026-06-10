@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createDbClient } from '@/lib/supabase/db'
 
 export interface VisibilityTrendPoint {
   date: string
@@ -28,7 +28,7 @@ export async function getCompetitorVisibility(
   days = 30,
   platform?: string
 ): Promise<CompetitorScore[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
   const halfwayPoint = new Date(Date.now() - (days / 2) * 24 * 60 * 60 * 1000).toISOString()
 
@@ -134,7 +134,7 @@ function toZeroScore(id: string, name: string, domain: string, isOwn: boolean): 
 export async function getShareOfVoice(
   projectId: string,
 ): Promise<Array<{ name: string; share: number; isOwn: boolean }>> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
     supabase.from('brands').select('id, name, is_primary').eq('project_id', projectId),
@@ -203,7 +203,7 @@ export interface GapMatrixRow {
 }
 
 export async function getCompetitorGapMatrix(projectId: string): Promise<GapMatrixRow[]> {
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
     supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),

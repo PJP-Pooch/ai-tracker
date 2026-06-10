@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createDbClient } from '@/lib/supabase/db'
 import { redirect } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BrandsTab } from '@/components/features/settings/brands-tab'
@@ -13,21 +14,23 @@ export default async function SettingsPage({
 }) {
   const { projectId } = await params
   const supabase = await createClient()
+  const db = await createDbClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const [{ data: project }, { data: brands }, { data: competitors }, { data: prompts }] =
     await Promise.all([
-      supabase.from('projects').select('*').eq('id', projectId).single(),
-      supabase.from('brands').select('*').eq('project_id', projectId).order('created_at'),
-      supabase.from('competitors').select('*').eq('project_id', projectId).order('created_at'),
-      supabase.from('prompts').select('*').eq('project_id', projectId).order('created_at'),
+      db.from('projects').select('*').eq('id', projectId).single(),
+      db.from('brands').select('*').eq('project_id', projectId).order('created_at'),
+      db.from('competitors').select('*').eq('project_id', projectId).order('created_at'),
+      db.from('prompts').select('*').eq('project_id', projectId).order('created_at'),
     ])
 
   if (!project) redirect('/projects')
 
-  const isAdmin = project.owner_id === user.id
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean)
+  const isAdmin = project.owner_id === user.id || adminEmails.includes(user.email ?? '')
 
   return (
     <div>

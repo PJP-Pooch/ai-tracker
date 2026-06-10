@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/features/nav/sidebar'
 import { Header } from '@/components/features/nav/header'
@@ -17,7 +18,11 @@ export default async function ProjectLayout({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: project } = await supabase
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean)
+  const isAdmin = adminEmails.includes(user.email ?? '')
+  const db = isAdmin ? createAdminClient() : supabase
+
+  const { data: project } = await db
     .from('projects')
     .select('id, name')
     .eq('id', projectId)
@@ -26,7 +31,7 @@ export default async function ProjectLayout({
   if (!project) redirect('/projects')
 
   // Fetch the latest successful run date for prompts belonging to this project
-  const { data: latestRun } = await supabase
+  const { data: latestRun } = await db
     .from('runs')
     .select('run_date, prompts!inner(project_id)')
     .eq('status', 'success')

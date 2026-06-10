@@ -1,7 +1,7 @@
 import { getPromptsWithStats } from '@/lib/queries/prompts'
 import { PromptsTable } from '@/components/features/prompts/prompts-table'
 import { PromptsFilters } from '@/components/features/prompts/prompts-filters'
-import { createClient } from '@/lib/supabase/server'
+import { createDbClient } from '@/lib/supabase/db'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Settings } from 'lucide-react'
@@ -15,7 +15,7 @@ export default async function PromptsPage({
 }) {
   const { projectId } = await params
   const sp = await searchParams
-  const supabase = await createClient()
+  const supabase = await createDbClient()
 
   const [data, { data: brands }, { data: competitors }] = await Promise.all([
     getPromptsWithStats(projectId, {
