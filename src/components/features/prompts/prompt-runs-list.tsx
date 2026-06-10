@@ -49,7 +49,7 @@ export function PromptRunsList({ runs, brandId, trackedBrandNames, prompt, proje
   }
 
   const handleRunClick = (dateString: string) => {
-    setSelectedDate(dateString.split('T')[0])
+    setSelectedDate(dateString)
     setDialogOpen(true)
   }
 
@@ -81,11 +81,12 @@ export function PromptRunsList({ runs, brandId, trackedBrandNames, prompt, proje
                         onClick={() => handleRunClick(run.run_date)}
                         className="flex items-center gap-4 py-2 px-3 rounded-lg border border-border/40 hover:bg-muted/40 hover:border-border/80 transition-all cursor-pointer group"
                       >
-                        <span className="text-xs font-medium text-muted-foreground w-24 shrink-0 group-hover:text-foreground transition-colors">
-                          {new Date(run.run_date).toLocaleDateString('en-GB', {
+                        <span className="text-xs font-medium text-muted-foreground w-32 shrink-0 group-hover:text-foreground transition-colors">
+                          {new Date(run.run_date).toLocaleString('en-GB', {
                             day: 'numeric',
                             month: 'short',
-                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
                           })}
                         </span>
                         <div className="flex-1 min-w-0 flex items-center gap-3">

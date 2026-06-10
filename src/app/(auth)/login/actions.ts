@@ -35,14 +35,16 @@ export async function signUp(formData: FormData) {
 export async function signInWithGoogle() {
   const supabase = await createClient()
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  
+  const redirectUrl = `${siteUrl}/callback?next=/projects`
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${siteUrl}/auth/callback`,
+      redirectTo: redirectUrl,
     },
   })
 
+  console.log('signInWithGoogle result URL:', data?.url)
   if (error) return { error: error.message }
 
   return { url: data.url }

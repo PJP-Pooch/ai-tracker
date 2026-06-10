@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0' // disable SSL verification for local dev
 import { cookies } from 'next/headers'
 import type { Database } from './types'
 

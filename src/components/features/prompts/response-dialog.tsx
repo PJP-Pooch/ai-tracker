@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -15,6 +15,7 @@ import { createCompetitor } from '@/actions/competitors'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 function extractDiscoveredBrands(rawResponse: string, trackedNames: string[]): string[] {
   const boldPattern = /\*\*([^*]{2,50})\*\*/g
@@ -114,6 +115,29 @@ function ResponseContent({
     : []
 
   const activeMentions = run.mentions.filter((m) => m.mentioned)
+
+  const brandsInOrder = useMemo(() => {
+    if (!run?.raw_response) return []
+    const responseText = run.raw_response
+    const brandPattern = /\*\*([^*]+)\*\*|^[-\d]+\.\s+([^\n]+)/gm
+    const list: string[] = []
+    let match
+    
+    const regex = new RegExp(brandPattern)
+    while ((match = regex.exec(responseText)) !== null) {
+      const name = (match[1] || match[2] || '').trim()
+      const cleaned = name.replace(/\s*\([^)]*\)/g, '').replace(/[:.,\-\s]+$/, '').trim().toLowerCase()
+      if (
+        cleaned.length >= 2 &&
+        !/^(best|top|overall|wet|dry|raw|fresh|note|tip|sensitive|hypoallergenic|specialized|excellent|other|puppy|puppies|vet|recommend|digest|ingredients|why|how|what|choose|select)/i.test(cleaned)
+      ) {
+        if (!list.includes(cleaned)) {
+          list.push(cleaned)
+        }
+      }
+    }
+    return list
+  }, [run?.raw_response])
 
   return (
     <div className="space-y-6">
@@ -239,9 +263,33 @@ function ResponseContent({
       )}
 
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          AI Response Text
-        </h4>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-1">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            AI Response Text
+          </h4>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground select-none">
+            <span className="flex items-center gap-1">
+              <span className="inline-flex items-center justify-center px-1 text-[8px] font-bold rounded border bg-primary/5 text-primary border-primary/30 font-mono">#1</span>
+              <span>Tracked Brand</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-flex items-center justify-center px-1 text-[8px] font-bold rounded border bg-muted/20 text-muted-foreground border-border/80 font-mono">#1</span>
+              <span>Discovered Brand</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Positive</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+              <span>Neutral</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              <span>Negative</span>
+            </span>
+          </div>
+        </div>
         {run.raw_response ? (
           <div className="text-sm text-foreground/90 bg-muted/20 rounded-xl p-5 border border-border/60 leading-relaxed font-sans overflow-hidden">
             <ReactMarkdown
@@ -253,7 +301,83 @@ function ResponseContent({
                 ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1">{children}</ul>,
                 ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1">{children}</ol>,
                 li: ({ children }) => <li className="mb-0.5">{children}</li>,
-                strong: ({ children }) => <strong className="font-bold text-foreground">{children}</strong>,
+                strong: ({ children }) => {
+                  const textContent = String(children).trim()
+                  const cleanBold = textContent.replace(/\s*\([^)]*\)/g, '').replace(/[:.,\-\s]+$/, '').trim().toLowerCase()
+                  
+                  if (!cleanBold || cleanBold.length < 2) {
+                    return <strong className="font-bold text-foreground">{children}</strong>
+                  }
+
+                  // 1. Check if it matches any tracked brand in the run mentions
+                  const dbMention = run.mentions?.find((m) => {
+                    if (!m.mentioned || !m.brands?.name) return false
+                    const bName = m.brands.name.toLowerCase()
+                    return cleanBold === bName || cleanBold.includes(bName) || bName.includes(cleanBold)
+                  })
+
+                  let position = dbMention?.position
+                  let isTracked = !!dbMention
+                  let sentiment = dbMention?.sentiment
+
+                  // 2. If not a tracked brand mention, look it up in the overall brandsInOrder list
+                  if (!isTracked) {
+                    const isGenericWord = /^(best|top|overall|wet|dry|raw|fresh|note|tip|sensitive|hypoallergenic|specialized|excellent|other|puppy|puppies|vet|recommend|digest|ingredients|why|how|what|choose|select)/i.test(cleanBold)
+                    if (!isGenericWord) {
+                      const idx = brandsInOrder.findIndex((name) => 
+                        cleanBold === name || cleanBold.includes(name) || name.includes(cleanBold)
+                      )
+                      if (idx >= 0) {
+                        position = idx + 1
+                      }
+                    }
+                  }
+
+                  if (position != null) {
+                    const badgeColor =
+                      position === 1
+                        ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800'
+                        : position === 2
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                          : position === 3
+                            ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                            : position <= 5
+                              ? 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800'
+                              : 'bg-red-100 text-red-800 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800'
+
+                    return (
+                      <strong className="font-bold text-foreground inline-flex items-center gap-1.5 relative group/brand">
+                        {children}
+                        <span
+                          className={cn(
+                            'inline-flex items-center justify-center gap-1 px-1.5 py-0.25 text-[10px] font-bold rounded border shrink-0 font-mono select-none transition-all',
+                            badgeColor,
+                            isTracked 
+                              ? 'ring-1 ring-primary/25 shadow-sm scale-105 border-primary/30' 
+                              : 'opacity-85'
+                          )}
+                          title={`${isTracked ? 'Tracked Brand' : 'Discovered Brand'} · Rank #${position}`}
+                        >
+                          #{position}
+                          {isTracked && sentiment && (
+                            <span
+                              className={cn(
+                                'w-1.5 h-1.5 rounded-full shrink-0',
+                                sentiment === 'positive'
+                                  ? 'bg-emerald-500'
+                                  : sentiment === 'neutral'
+                                    ? 'bg-zinc-400'
+                                    : 'bg-rose-500'
+                              )}
+                            />
+                          )}
+                        </span>
+                      </strong>
+                    )
+                  }
+
+                  return <strong className="font-bold text-foreground">{children}</strong>
+                },
               }}
             >
               {run.raw_response}
@@ -297,6 +421,61 @@ function ResponseContent({
   )
 }
 
+interface RunGroup {
+  id: string
+  dateStr: string
+  displayLabel: string
+  chatgptRun?: RunHistory
+  geminiRun?: RunHistory
+}
+
+function getRunGroups(runs: RunHistory[]): RunGroup[] {
+  const sorted = [...runs].sort(
+    (a, b) => new Date(b.run_date).getTime() - new Date(a.run_date).getTime()
+  )
+
+  const groups: RunGroup[] = []
+
+  for (const run of sorted) {
+    const runTime = new Date(run.run_date).getTime()
+
+    // Find group within 3 minutes threshold
+    const match = groups.find((g) => {
+      const gTime = new Date(g.id).getTime()
+      return Math.abs(gTime - runTime) <= 3 * 60 * 1000
+    })
+
+    if (match) {
+      if (run.platform === 'chatgpt' && !match.chatgptRun) {
+        match.chatgptRun = run
+      } else if (run.platform === 'gemini' && !match.geminiRun) {
+        match.geminiRun = run
+      }
+    } else {
+      const date = new Date(run.run_date)
+      const displayLabel = date.toLocaleDateString('en-GB', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }) + ', ' + date.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+
+      groups.push({
+        id: run.run_date,
+        dateStr: run.run_date.split('T')[0],
+        displayLabel,
+        chatgptRun: run.platform === 'chatgpt' ? run : undefined,
+        geminiRun: run.platform === 'gemini' ? run : undefined,
+      })
+    }
+  }
+
+  return groups
+}
+
 export function ResponseDialog({
   prompt,
   runs,
@@ -306,28 +485,32 @@ export function ResponseDialog({
   initialDate = '',
   projectId,
 }: ResponseDialogProps) {
-  const [selectedDate, setSelectedDate] = useState<string>('')
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('')
 
-  // Sync selectedDate with initialDate when the modal opens or initialDate changes
+  const runGroups = getRunGroups(runs)
+
+  // Sync selectedGroupId with initialDate when the modal opens or initialDate changes
   useEffect(() => {
     if (open) {
-      setSelectedDate(initialDate || '')
+      if (initialDate) {
+        const matched = runGroups.find(
+          (g) =>
+            g.chatgptRun?.run_date === initialDate ||
+            g.geminiRun?.run_date === initialDate ||
+            g.id === initialDate ||
+            g.dateStr === initialDate
+        )
+        setSelectedGroupId(matched ? matched.id : (runGroups[0]?.id || ''))
+      } else {
+        setSelectedGroupId(runGroups[0]?.id || '')
+      }
     }
-  }, [open, initialDate])
+  }, [open, initialDate, runs])
 
-  // Get unique run dates from the runs list (in YYYY-MM-DD format)
-  const runDates = Array.from(
-    new Set(runs.map((r) => r.run_date.split('T')[0]))
-  ).sort((a, b) => b.localeCompare(a))
+  const groupToUse = runGroups.find(g => g.id === selectedGroupId) || runGroups[0]
 
-  const dateToUse = selectedDate || runDates[0] || ''
-
-  const currentChatGPT = runs.find(
-    (r) => r.platform === 'chatgpt' && r.run_date.startsWith(dateToUse)
-  )
-  const currentGemini = runs.find(
-    (r) => r.platform === 'gemini' && r.run_date.startsWith(dateToUse)
-  )
+  const currentChatGPT = groupToUse?.chatgptRun
+  const currentGemini = groupToUse?.geminiRun
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -371,24 +554,19 @@ export function ResponseDialog({
               </TabsTrigger>
             </TabsList>
 
-            {runDates.length > 0 && (
+            {runGroups.length > 0 && (
               <div className="flex items-center gap-2 self-start sm:self-auto pb-1 sm:pb-0">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Scan Date:
                 </span>
                 <select
-                  value={dateToUse}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  value={groupToUse?.id || ''}
+                  onChange={(e) => setSelectedGroupId(e.target.value)}
                   className="bg-card hover:bg-muted/30 border border-border rounded-lg px-2.5 py-1 text-xs font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none cursor-pointer transition-colors shadow-sm text-foreground"
                 >
-                  {runDates.map((date) => (
-                    <option key={date} value={date}>
-                      {new Date(date).toLocaleDateString('en-GB', {
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
+                  {runGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.displayLabel}
                     </option>
                   ))}
                 </select>

@@ -125,6 +125,7 @@ export interface RunHistory {
     mentioned: boolean
     snippet: string | null
     brands: { name: string } | null
+    mention_type: 'top_choice' | 'recommended' | 'mentioned_only' | null
   }>
   citations: Array<{
     domain: string
@@ -149,7 +150,7 @@ export async function getPromptRunHistory(
       run_date,
       raw_response,
       status,
-      mentions ( brand_id, position, sentiment, mentioned, snippet, brands!brand_id ( name ) ),
+      mentions ( brand_id, position, sentiment, mentioned, snippet, mention_type, brands!brand_id ( name ) ),
       citations ( domain, url, title, position )
     `)
     .eq('prompt_id', promptId)
