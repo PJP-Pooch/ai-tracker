@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import {
   useReactTable,
   getCoreRowModel,
@@ -56,12 +57,13 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [] }: Prompt
       accessorKey: 'promptText',
       header: 'Prompt',
       cell: ({ row }) => (
-        <button
-          onClick={() => openDialog(row.original)}
+        <Link
+          href={`/${projectId}/prompts/${row.original.id}`}
+          onClick={(e) => e.stopPropagation()}
           className="text-left text-sm font-medium text-foreground hover:text-primary transition-colors"
         >
           {row.original.promptText}
-        </button>
+        </Link>
       ),
       size: 300,
     },

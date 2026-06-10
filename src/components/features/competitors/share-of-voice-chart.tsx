@@ -17,8 +17,11 @@ export function ShareOfVoiceChart({ data }: ShareOfVoiceChartProps) {
   if (data.length === 0) {
     return (
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle className="text-base">Share of AI Voice</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Distribution of mentions across tracked brands and competitors
+          </p>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8 text-muted-foreground text-sm">
           No data yet.
@@ -29,8 +32,11 @@ export function ShareOfVoiceChart({ data }: ShareOfVoiceChartProps) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle className="text-base">Share of AI Voice</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Distribution of mentions across tracked brands and competitors
+        </p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>

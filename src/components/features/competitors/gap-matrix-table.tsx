@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import type { GapMatrixRow, CompetitorGapStatus } from '@/lib/queries/competitors'
-import { Check, AlertCircle, X, HelpCircle } from 'lucide-react'
+import { Check, MessageSquare, X, HelpCircle } from 'lucide-react'
 
 interface GapMatrixTableProps {
   data: GapMatrixRow[]
@@ -160,14 +160,14 @@ export function GapMatrixTable({ data, competitorNames, ownBrandName }: GapMatri
           Cited in references (Best)
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-5 h-5 rounded bg-amber-100/60 border border-amber-300 flex items-center justify-center">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
+          <span className="w-5 h-5 rounded bg-blue-100/60 border border-blue-300 flex items-center justify-center">
+            <MessageSquare className="w-3.5 h-3.5 text-blue-700" />
           </span>
           Mentioned in response text only
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-5 h-5 rounded bg-neutral-100/60 border border-neutral-300 flex items-center justify-center">
-            <X className="w-3.5 h-3.5 text-neutral-400" />
+          <span className="w-5 h-5 rounded bg-red-100/60 border border-red-300 flex items-center justify-center">
+            <X className="w-3.5 h-3.5 text-red-700" />
           </span>
           Not referenced / missing
         </span>
@@ -213,14 +213,14 @@ function StatusIndicator({ status }: { status: 'cited' | 'mentioned' | 'missing'
       )
     case 'mentioned':
       return (
-        <span className="inline-flex w-7 h-7 rounded-lg bg-amber-100/60 border border-amber-300 items-center justify-center shadow-xs">
-          <AlertCircle className="w-4 h-4 text-amber-700 stroke-[3]" />
+        <span className="inline-flex w-7 h-7 rounded-lg bg-blue-100/60 border border-blue-300 items-center justify-center shadow-xs">
+          <MessageSquare className="w-4 h-4 text-blue-700 stroke-[2.5]" />
         </span>
       )
     case 'missing':
       return (
-        <span className="inline-flex w-7 h-7 rounded-lg bg-neutral-100/50 border border-neutral-200 items-center justify-center">
-          <X className="w-4 h-4 text-neutral-400/80 stroke-[2]" />
+        <span className="inline-flex w-7 h-7 rounded-lg bg-red-100/60 border border-red-300 items-center justify-center shadow-xs">
+          <X className="w-4 h-4 text-red-700 stroke-[3]" />
         </span>
       )
     case 'none':

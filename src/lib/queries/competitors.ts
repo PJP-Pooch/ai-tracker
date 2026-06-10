@@ -15,6 +15,7 @@ export interface CompetitorScore {
   delta: number
   promptCoverage: number
   citationCount: number
+  mentionCount: number
   trendData: Array<{ date: string; score: number }>
 }
 
@@ -89,6 +90,11 @@ export async function getCompetitorVisibility(
       return sum + hits
     }, 0)
 
+    // Mention count: total runs where this entity is mentioned
+    const mentionCount = runs.filter(
+      (r) => r.raw_response && mentionedInResponse(r.raw_response, entity.name, entity.domain)
+    ).length
+
     // Trend: group runs by date, compute daily mention rate
     const byDate = new Map<string, { total: number; mentioned: number }>()
     for (const r of runs) {
@@ -118,6 +124,7 @@ export async function getCompetitorVisibility(
       delta: currentScore - previousScore,
       promptCoverage: mentionRate(runs),
       citationCount,
+      mentionCount,
       trendData,
     }
   })
@@ -127,7 +134,7 @@ function toZeroScore(id: string, name: string, domain: string, isOwn: boolean): 
   return {
     brandId: id, brandName: name, domain, isOwn,
     currentScore: 0, previousScore: 0, delta: 0,
-    promptCoverage: 0, citationCount: 0, trendData: [],
+    promptCoverage: 0, citationCount: 0, mentionCount: 0, trendData: [],
   }
 }
 
@@ -137,47 +144,52 @@ export async function getShareOfVoice(
   const supabase = await createDbClient()
 
   const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
-    supabase.from('brands').select('id, name, is_primary').eq('project_id', projectId),
-    supabase.from('competitors').select('id, name').eq('project_id', projectId),
+    supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
+    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
     supabase.from('prompts').select('id').eq('project_id', projectId),
   ])
 
   const promptIds = (prompts ?? []).map((p) => p.id)
   if (promptIds.length === 0) return []
 
-  const { data: mentions } = await supabase
-    .from('mentions')
-    .select('brand_id, mentioned')
-    .in(
-      'run_id',
-      (
-        await supabase
-          .from('runs')
-          .select('id')
-          .in('prompt_id', promptIds)
-          .eq('status', 'success')
-      ).data?.map((r) => r.id) ?? []
-    )
-    .eq('mentioned', true)
+  const { data: runs } = await supabase
+    .from('runs')
+    .select('id, raw_response')
+    .in('prompt_id', promptIds)
+    .eq('status', 'success')
+    .not('raw_response', 'is', null)
+    .neq('raw_response', '')
 
-  if (!mentions || mentions.length === 0) return []
+  if (!runs || runs.length === 0) return []
+
+  const allEntities = [
+    ...(brands ?? []).map((b) => ({ name: b.name, domain: b.domain, isOwn: b.is_primary })),
+    ...(competitors ?? []).map((c) => ({ name: c.name, domain: c.domain, isOwn: false })),
+  ]
 
   const mentionCounts: Record<string, number> = {}
-  for (const m of mentions) {
-    if (m.brand_id) {
-      mentionCounts[m.brand_id] = (mentionCounts[m.brand_id] ?? 0) + 1
+  for (const entity of allEntities) {
+    mentionCounts[entity.name] = 0
+  }
+
+  for (const r of runs) {
+    if (!r.raw_response) continue
+    for (const entity of allEntities) {
+      if (mentionedInResponse(r.raw_response, entity.name, entity.domain)) {
+        mentionCounts[entity.name] = (mentionCounts[entity.name] ?? 0) + 1
+      }
     }
   }
 
   const total = Object.values(mentionCounts).reduce((a, b) => a + b, 0)
   if (total === 0) return []
 
-  return (brands ?? [])
-    .filter((b) => mentionCounts[b.id] > 0)
-    .map((b) => ({
-      name: b.name,
-      share: Math.round((mentionCounts[b.id] / total) * 100),
-      isOwn: b.is_primary,
+  return allEntities
+    .filter((entity) => mentionCounts[entity.name] > 0)
+    .map((entity) => ({
+      name: entity.name,
+      share: Math.round((mentionCounts[entity.name] / total) * 100),
+      isOwn: entity.isOwn,
     }))
     .sort((a, b) => b.share - a.share)
 }

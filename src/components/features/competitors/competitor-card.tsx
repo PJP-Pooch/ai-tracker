@@ -84,6 +84,7 @@ export function CompetitorCard({ competitor }: CompetitorCardProps) {
         )}
 
         <div className="flex justify-between text-xs text-muted-foreground mt-2">
+          <span>{competitor.mentionCount} mentions</span>
           <span>{competitor.citationCount} citations</span>
         </div>
       </CardContent>
