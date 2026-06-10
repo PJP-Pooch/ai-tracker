@@ -2,8 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart3, Plus } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { BarChart3, Plus, Shield } from 'lucide-react'
 import { Toaster } from '@/components/ui/sonner'
 import { RunNowButton } from '@/components/features/prompts/run-now-button'
 import { formatLastScanned } from '@/lib/utils'
@@ -13,6 +13,9 @@ export default async function ProjectsPage() {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean)
+  const isAdmin = adminEmails.includes(user.email ?? '')
 
   const { data: projects } = await supabase
     .from('projects')
@@ -44,12 +47,22 @@ export default async function ProjectsPage() {
             <h1 className="text-2xl font-bold text-foreground">Projects</h1>
             <p className="text-sm text-muted-foreground mt-1">Manage your AI visibility tracking projects</p>
           </div>
-          <Link href="/projects/new">
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              New Project
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link href="/admin/members">
+                <Button variant="outline" size="sm">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Members
+                </Button>
+              </Link>
+            )}
+            <Link href="/projects/new">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                New Project
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {projects && projects.length > 0 ? (
