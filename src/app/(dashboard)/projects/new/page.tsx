@@ -17,38 +17,36 @@ export default function NewProjectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <Card>
-          <CardHeader>
-            <CardTitle>Create New Project</CardTitle>
-            <CardDescription>
-              A project groups your brand, competitors, and tracked prompts together.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form action={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Project Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="e.g. Pooch & Mutt"
-                  required
-                  autoFocus
-                />
-              </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <div className="flex gap-3">
-                <Button type="submit" className="flex-1">Create Project</Button>
-                <Link href="/projects">
-                  <Button variant="outline" type="button">Cancel</Button>
-                </Link>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="max-w-md">
+      <Card>
+        <CardHeader>
+          <CardTitle>Create New Project</CardTitle>
+          <CardDescription>
+            A project groups your brand, competitors, and tracked prompts together.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Project Name</Label>
+              <Input
+                id="name"
+                name="name"
+                placeholder="e.g. Pooch & Mutt"
+                required
+                autoFocus
+              />
+            </div>
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <div className="flex gap-3">
+              <Button type="submit" className="flex-1">Create Project</Button>
+              <Link href="/projects">
+                <Button variant="outline" type="button">Cancel</Button>
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }
