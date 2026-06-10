@@ -15,7 +15,7 @@ interface VisibilityTrendChartProps {
 }
 
 export function VisibilityTrendChart({ data, brandName }: VisibilityTrendChartProps) {
-  const [showCompetitors, setShowCompetitors] = useState(false)
+  const [showCompetitors, setShowCompetitors] = useState(true)
   const { resolvedTheme } = useTheme()
   const colors = resolvedTheme === 'dark' ? CHART_COLORS.dark : CHART_COLORS.light
 

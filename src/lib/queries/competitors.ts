@@ -242,6 +242,8 @@ export async function getCompetitorGapMatrix(projectId: string): Promise<GapMatr
     `)
     .in('prompt_id', promptIds)
     .eq('status', 'success')
+    .not('raw_response', 'is', null)
+    .neq('raw_response', '')
     .order('run_date', { ascending: false })
 
   if (!runs) return []

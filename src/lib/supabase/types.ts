@@ -12,6 +12,32 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      project_members: {
+        Row: {
+          project_id: string
+          user_id: string
+          added_at: string
+        }
+        Insert: {
+          project_id: string
+          user_id: string
+          added_at?: string
+        }
+        Update: {
+          project_id?: string
+          user_id?: string
+          added_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'project_members_project_id_fkey'
+            columns: ['project_id']
+            isOneToOne: false
+            referencedRelation: 'projects'
+            referencedColumns: ['id']
+          }
+        ]
+      }
       user_profiles: {
         Row: {
           id: string
@@ -392,6 +418,7 @@ export type Database = {
           run_count: number
           brand_name: string | null
           competitor_name: string | null
+          last_seen: string
         }>
       }
       get_top_cited_urls: {
@@ -408,6 +435,7 @@ export type Database = {
           citation_count: number
           brand_name: string | null
           competitor_name: string | null
+          last_seen: string
         }>
       }
       get_mention_rate: {

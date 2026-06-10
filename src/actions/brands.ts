@@ -1,12 +1,13 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireRole } from '@/lib/auth/require-role'
 import { revalidatePath } from 'next/cache'
 
 export async function createBrand(projectId: string, formData: FormData) {
-  await requireRole('admin')
-  const supabase = await createClient()
+  const { isAdmin } = await requireRole('admin')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('brands').insert({
     project_id: projectId,
@@ -22,8 +23,8 @@ export async function createBrand(projectId: string, formData: FormData) {
 }
 
 export async function updateBrand(id: string, projectId: string, formData: FormData) {
-  await requireRole('admin')
-  const supabase = await createClient()
+  const { isAdmin } = await requireRole('admin')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('brands').update({
     name: (formData.get('name') as string).trim(),
@@ -37,8 +38,8 @@ export async function updateBrand(id: string, projectId: string, formData: FormD
 }
 
 export async function deleteBrand(id: string, projectId: string) {
-  await requireRole('admin')
-  const supabase = await createClient()
+  const { isAdmin } = await requireRole('admin')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('brands').delete().eq('id', id)
   if (error) return { error: error.message }

@@ -1,12 +1,13 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireRole } from '@/lib/auth/require-role'
 import { revalidatePath } from 'next/cache'
 
 export async function createPrompt(projectId: string, formData: FormData) {
-  await requireRole('admin')
-  const supabase = await createClient()
+  const { isAdmin } = await requireRole('admin')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('prompts').insert({
     project_id: projectId,
@@ -24,8 +25,8 @@ export async function createPrompt(projectId: string, formData: FormData) {
 }
 
 export async function bulkCreatePrompts(projectId: string, promptLines: string) {
-  await requireRole('admin')
-  const supabase = await createClient()
+  const { isAdmin } = await requireRole('admin')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const lines = promptLines
     .split('\n')
@@ -53,8 +54,8 @@ export async function bulkCreatePromptsWithOptions(
   projectId: string,
   prompts: Array<{ prompt_text: string; intent?: string; priority?: string; volume?: number }>
 ) {
-  await requireRole('admin')
-  const supabase = await createClient()
+  const { isAdmin } = await requireRole('admin')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const inserts = prompts.map((p) => ({
     project_id: projectId,
@@ -73,8 +74,8 @@ export async function bulkCreatePromptsWithOptions(
 }
 
 export async function updatePrompt(id: string, projectId: string, formData: FormData) {
-  await requireRole('admin')
-  const supabase = await createClient()
+  const { isAdmin } = await requireRole('admin')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('prompts').update({
     prompt_text: (formData.get('prompt_text') as string).trim(),
@@ -92,13 +93,29 @@ export async function updatePrompt(id: string, projectId: string, formData: Form
 }
 
 export async function deletePrompt(id: string, projectId: string) {
-  await requireRole('admin')
-  const supabase = await createClient()
+  const { isAdmin } = await requireRole('admin')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('prompts').delete().eq('id', id)
   if (error) return { error: error.message }
 
   revalidatePath(`/${projectId}/settings`)
   revalidatePath(`/${projectId}/prompts`)
+  return { success: true }
+}
+
+export async function deleteRunGroup(runIds: string[], projectId: string) {
+  const { isAdmin } = await requireRole('admin')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
+
+  const { error } = await supabase.from('runs').delete().in('id', runIds)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/${projectId}/prompts`)
+  revalidatePath(`/${projectId}/overview`)
+  revalidatePath(`/${projectId}/citations`)
+  revalidatePath(`/${projectId}/competitors`)
+  revalidatePath(`/${projectId}/outreach`)
+
   return { success: true }
 }

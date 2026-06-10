@@ -1,12 +1,16 @@
 import { createDbClient } from '@/lib/supabase/db'
 
+export interface OutreachOpportunityPrompt {
+  promptText: string
+  url: string
+}
+
 export interface OutreachOpportunity {
   domain: string
   competitorCitations: number
   competitorsCited: string
   promptsCount: number
-  sampleUrl: string
-  samplePrompt: string
+  prompts: OutreachOpportunityPrompt[]
 }
 
 export async function getOutreachOpportunities(
@@ -55,16 +59,17 @@ export async function getOutreachOpportunities(
     return []
   }
 
+  const validRuns = runs.filter((r) => r.raw_response && r.raw_response.trim() !== '')
+
   const outreachOpportunities: Record<string, {
     domain: string
     competitorCitations: number
     competitorsCited: Set<string>
     promptsCount: Set<string>
-    sampleUrl: string
-    samplePrompt: string
+    prompts: OutreachOpportunityPrompt[]
   }> = {}
 
-  for (const run of runs) {
+  for (const run of validRuns) {
     const text = run.raw_response || ''
     // Handle nested prompts safely (TypeScript types might see it as object or array)
     const promptText = run.prompts && !Array.isArray(run.prompts)
@@ -116,14 +121,24 @@ export async function getOutreachOpportunities(
             competitorCitations: 0,
             competitorsCited: new Set(),
             promptsCount: new Set(),
-            sampleUrl: citation.url,
-            samplePrompt: promptText,
+            prompts: [],
           }
         }
 
         outreachOpportunities[cDomain].competitorCitations += 1
         mentionedCompetitors.forEach((comp) => outreachOpportunities[cDomain].competitorsCited.add(comp.name))
         outreachOpportunities[cDomain].promptsCount.add(promptId)
+
+        // Add prompt if it doesn't already exist in the list
+        const promptExists = outreachOpportunities[cDomain].prompts.some(
+          (p) => p.promptText === promptText && p.url === citation.url
+        )
+        if (!promptExists) {
+          outreachOpportunities[cDomain].prompts.push({
+            promptText,
+            url: citation.url,
+          })
+        }
       }
     }
   }
@@ -134,8 +149,7 @@ export async function getOutreachOpportunities(
       competitorCitations: o.competitorCitations,
       competitorsCited: Array.from(o.competitorsCited).join(', ') || 'Competitors mentioned in response',
       promptsCount: o.promptsCount.size,
-      sampleUrl: o.sampleUrl,
-      samplePrompt: o.samplePrompt,
+      prompts: o.prompts,
     }))
     .sort((a, b) => b.competitorCitations - a.competitorCitations)
 }

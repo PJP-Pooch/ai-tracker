@@ -44,6 +44,7 @@ export async function getPromptsWithStats(
         platform,
         run_date,
         status,
+        raw_response,
         mentions ( brand_id, position, sentiment, mentioned, mention_type ),
         citations ( id )
       )
@@ -62,7 +63,9 @@ export async function getPromptsWithStats(
       return true
     })
     .map((prompt) => {
-      const successRuns = (prompt.runs ?? []).filter((r) => r.status === 'success')
+      const successRuns = (prompt.runs ?? []).filter(
+        (r) => r.status === 'success' && r.raw_response && r.raw_response.trim() !== ''
+      )
 
       // Get latest run per platform
       const latestChatGPT = successRuns
@@ -158,5 +161,6 @@ export async function getPromptRunHistory(
     .eq('status', 'success')
     .order('run_date', { ascending: false })
 
-  return (data ?? []) as RunHistory[]
+  const runs = (data ?? []) as RunHistory[]
+  return runs.filter((r) => r.raw_response && r.raw_response.trim() !== '')
 }

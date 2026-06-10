@@ -35,7 +35,8 @@ export function ProjectTab({ project, isAdmin }: { project: Project; isAdmin: bo
 
   async function handleDelete() {
     if (!confirm('Delete this project and all its data? This cannot be undone.')) return
-    await deleteProject(project.id)
+    const result = await deleteProject(project.id)
+    if (result?.error) setError(result.error)
   }
 
   return (

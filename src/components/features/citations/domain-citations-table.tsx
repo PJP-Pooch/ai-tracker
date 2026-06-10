@@ -20,7 +20,7 @@ import type { CitedDomain } from '@/lib/queries/citations'
 
 const ownerTagStyles: Record<string, string> = {
   own: 'bg-primary/10 text-primary border-primary/20',
-  competitor: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  competitor: 'bg-purple-500/10 text-purple-600 border-purple-500/20 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
   'third-party': 'bg-muted text-muted-foreground border-border',
 }
 
@@ -71,6 +71,24 @@ export function DomainCitationsTable({ data }: DomainCitationsTableProps) {
         <span className="text-sm text-foreground/80">{(getValue() as number)} runs</span>
       ),
       size: 100,
+    },
+    {
+      accessorKey: 'last_seen',
+      header: 'Last Seen',
+      cell: ({ getValue }) => {
+        const val = getValue() as string
+        if (!val) return <span className="text-sm text-muted-foreground">—</span>
+        return (
+          <span className="text-sm text-foreground/80">
+            {new Date(val).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </span>
+        )
+      },
+      size: 120,
     },
     {
       id: 'ownerTag',
@@ -141,7 +159,7 @@ export function DomainCitationsTable({ data }: DomainCitationsTableProps) {
                 const rowClass = owner === 'own'
                   ? 'bg-primary/[0.04] dark:bg-primary/[0.08] hover:bg-primary/[0.08] dark:hover:bg-primary/[0.12]'
                   : owner === 'competitor'
-                    ? 'bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.12]'
+                    ? 'bg-purple-500/[0.04] dark:bg-purple-500/[0.08] hover:bg-purple-500/[0.08] dark:hover:bg-purple-500/[0.12]'
                     : 'hover:bg-muted/30'
 
                 return (

@@ -22,10 +22,9 @@ export function KpiGrid({ kpis }: KpiGridProps) {
     kpis.sentimentBreakdown.neutral +
     kpis.sentimentBreakdown.negative
 
-  const sentimentScore =
-    totalSentiment > 0
-      ? Math.round((kpis.sentimentBreakdown.positive / totalSentiment) * 100)
-      : 0
+  const posPct = totalSentiment > 0 ? Math.round((kpis.sentimentBreakdown.positive / totalSentiment) * 100) : 0
+  const negPct = totalSentiment > 0 ? Math.round((kpis.sentimentBreakdown.negative / totalSentiment) * 100) : 0
+  const neuPct = totalSentiment > 0 ? Math.max(0, 100 - posPct - negPct) : 0
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -52,7 +51,7 @@ export function KpiGrid({ kpis }: KpiGridProps) {
         value={kpis.avgPosition !== null ? kpis.avgPosition : '—'}
         delta={kpis.avgPositionDelta}
         description="Mean rank in AI responses"
-        variant="default"
+        variant="gradient-sky"
         icon={Hash}
       />
       <KpiCard
@@ -63,14 +62,64 @@ export function KpiGrid({ kpis }: KpiGridProps) {
         variant="gradient-emerald"
         icon={Link2}
       />
-      <KpiCard
-        label="Positive Sentiment"
-        value={sentimentScore}
-        suffix="%"
-        description={`${kpis.sentimentBreakdown.positive} positive / ${totalSentiment} total mentions`}
-        variant="gradient-amber"
-        icon={ThumbsUp}
-      />
+      <div className="rounded-xl p-5 gradient-amber shadow-lg shadow-amber-500/20 border-0 flex flex-col justify-between h-full text-white">
+        <div>
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3 bg-white/20">
+            <ThumbsUp className="w-5 h-5 text-white" />
+          </div>
+          <p className="text-xs font-medium uppercase tracking-wide mb-1 text-white/70">
+            Sentiment Split
+          </p>
+          <div className="space-y-3 mt-2">
+            <div className="grid grid-cols-3 gap-1 text-center">
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-white">
+                  {posPct}%
+                </span>
+                <span className="text-[10px] text-white/70 font-medium uppercase">
+                  Pos
+                </span>
+              </div>
+              <div className="flex flex-col border-x border-white/20">
+                <span className="text-sm font-bold text-white">
+                  {neuPct}%
+                </span>
+                <span className="text-[10px] text-white/70 font-medium uppercase">
+                  Neu
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-white">
+                  {negPct}%
+                </span>
+                <span className="text-[10px] text-white/70 font-medium uppercase">
+                  Neg
+                </span>
+              </div>
+            </div>
+            <div className="h-2 w-full rounded-full overflow-hidden flex bg-white/25">
+              {totalSentiment > 0 ? (
+                <>
+                  {posPct > 0 && (
+                    <div className="bg-emerald-400 h-full transition-all" style={{ width: `${posPct}%` }} />
+                  )}
+                  {neuPct > 0 && (
+                    <div className="bg-white/45 h-full transition-all" style={{ width: `${neuPct}%` }} />
+                  )}
+                  {negPct > 0 && (
+                    <div className="bg-rose-500 h-full transition-all" style={{ width: `${negPct}%` }} />
+                  )}
+                </>
+              ) : (
+                <div className="bg-white/10 h-full w-full" />
+              )}
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-white/60 mt-3">
+          {totalSentiment} total mentions
+        </p>
+      </div>
     </div>
   )
 }

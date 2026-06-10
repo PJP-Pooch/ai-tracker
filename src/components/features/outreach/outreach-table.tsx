@@ -23,8 +23,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import type { OutreachOpportunity } from '@/lib/queries/outreach'
-import { ChevronDown, ChevronUp, ChevronsUpDown, Copy, Link2, Search, Download } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Copy, Link2, Search, Download } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface OutreachTableProps {
   data: OutreachOpportunity[]
@@ -33,6 +34,14 @@ interface OutreachTableProps {
 export function OutreachTable({ data }: OutreachTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
+
+  function toggleRow(domain: string) {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [domain]: !prev[domain],
+    }))
+  }
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text)
@@ -46,9 +55,8 @@ export function OutreachTable({ data }: OutreachTableProps) {
       'Outreach Target Domain',
       'Competitor Citations',
       'Brands Mentioned',
-      'Triggering Prompts',
-      'Sample Prompt',
-      'Sample Recommendation URL',
+      'Prompt',
+      'Recommendation URL',
     ]
     
     const escapeCSV = (val: any) => {
@@ -59,14 +67,26 @@ export function OutreachTable({ data }: OutreachTableProps) {
     
     const csvRows = [
       headers.join(','),
-      ...rowsToExport.map((row) => [
-        escapeCSV(row.domain),
-        row.competitorCitations,
-        escapeCSV(row.competitorsCited),
-        row.promptsCount,
-        escapeCSV(row.samplePrompt),
-        escapeCSV(row.sampleUrl),
-      ].join(',')),
+      ...rowsToExport.flatMap((row) => {
+        if (!row.prompts || row.prompts.length === 0) {
+          return [
+            [
+              escapeCSV(row.domain),
+              row.competitorCitations,
+              escapeCSV(row.competitorsCited),
+              '',
+              '',
+            ].join(',')
+          ]
+        }
+        return row.prompts.map((p) => [
+          escapeCSV(row.domain),
+          row.competitorCitations,
+          escapeCSV(row.competitorsCited),
+          escapeCSV(p.promptText),
+          escapeCSV(p.url),
+        ].join(','))
+      }),
     ]
     
     const csvContent = csvRows.join('\n')
@@ -85,12 +105,21 @@ export function OutreachTable({ data }: OutreachTableProps) {
     {
       accessorKey: 'domain',
       header: 'Outreach Target Domain',
-      cell: ({ getValue }) => (
-        <span className="font-semibold text-foreground/90 flex items-center gap-1.5">
-          <Link2 className="w-3.5 h-3.5 text-muted-foreground/60" />
-          {getValue() as string}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const domain = row.original.domain
+        const isExpanded = !!expandedRows[domain]
+        return (
+          <span className="font-semibold text-foreground/90 flex items-center gap-1.5">
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4 text-muted-foreground/60 shrink-0 transition-transform" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-muted-foreground/60 shrink-0 transition-transform" />
+            )}
+            <Link2 className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+            {domain}
+          </span>
+        )
+      },
       size: 250,
     },
     {
@@ -109,7 +138,7 @@ export function OutreachTable({ data }: OutreachTableProps) {
         return (
           <div className="flex flex-wrap gap-1">
             {brands.map((b) => (
-              <Badge key={b} variant="outline" className="bg-red-500/5 text-red-600 border-red-500/10 text-[10px] py-0 px-1.5 font-medium">
+              <Badge key={b} variant="outline" className="bg-purple-500/5 text-purple-600 border-purple-500/10 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20 text-[10px] py-0 px-1.5 font-medium">
                 {b}
               </Badge>
             ))}
@@ -125,36 +154,6 @@ export function OutreachTable({ data }: OutreachTableProps) {
         <span className="text-sm text-foreground/80">{getValue() as number} queries</span>
       ),
       size: 100,
-    },
-    {
-      accessorKey: 'samplePrompt',
-      header: 'Sample Prompt',
-      cell: ({ getValue }) => (
-        <div className="max-w-xs truncate" title={getValue() as string}>
-          <span className="text-xs text-muted-foreground">{getValue() as string || '-'}</span>
-        </div>
-      ),
-      size: 200,
-    },
-    {
-      accessorKey: 'sampleUrl',
-      header: 'Sample Recommendation URL',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2 max-w-sm">
-          <span className="text-xs text-muted-foreground truncate" title={row.original.sampleUrl}>
-            {row.original.sampleUrl}
-          </span>
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => copyToClipboard(row.original.sampleUrl)}
-            className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-foreground"
-          >
-            <Copy className="w-3 h-3" />
-          </Button>
-        </div>
-      ),
-      size: 250,
     },
   ]
 
@@ -230,15 +229,80 @@ export function OutreachTable({ data }: OutreachTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="hover:bg-muted/30">
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              table.getRowModel().rows.flatMap((row) => {
+                const domain = row.original.domain
+                const isExpanded = !!expandedRows[domain]
+                
+                const mainRow = (
+                  <TableRow 
+                    key={row.id} 
+                    className={cn(
+                      "hover:bg-muted/30 cursor-pointer transition-colors select-none",
+                      isExpanded && "bg-muted/20 hover:bg-muted/20"
+                    )}
+                    onClick={() => toggleRow(domain)}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                )
+                
+                if (!isExpanded) {
+                  return [mainRow]
+                }
+                
+                const detailRow = (
+                  <TableRow key={`${row.id}-details`} className="bg-muted/5 border-t-0 hover:bg-transparent">
+                    <TableCell colSpan={columns.length} className="p-4 bg-muted/5">
+                      <div className="space-y-3 pl-6 pr-4 py-2 border-l-2 border-primary/20">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left">
+                          Prompts Found For {domain}
+                        </h4>
+                        <div className="divide-y divide-border rounded-lg border bg-background overflow-hidden">
+                          {row.original.prompts.map((p, idx) => (
+                            <div key={idx} className="p-3 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-muted/5 transition-colors">
+                              <div className="space-y-1 max-w-xl text-left">
+                                <span className="font-medium text-foreground">{p.promptText}</span>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={p.url}>
+                                  {p.url}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    copyToClipboard(p.url)
+                                  }}
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground shrink-0"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </Button>
+                                <a
+                                  href={p.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center justify-center rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-7 px-2.5 shrink-0"
+                                >
+                                  <Link2 className="w-3 h-3 mr-1" />
+                                  Visit
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                  </TableRow>
+                )
+                
+                return [mainRow, detailRow]
+              })
             )}
           </TableBody>
         </Table>

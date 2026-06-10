@@ -55,7 +55,7 @@ export async function getExecutiveKPIs(projectId: string): Promise<ExecutiveKPIs
   if (promptCount === 0 || !brandId) {
     return {
       visibilityScore: 0, visibilityDelta: 0,
-      shareOfVoice: 0, shareOfVoiceDelta: 0,
+      shareOfVoice: 100, shareOfVoiceDelta: 0,
       avgPosition: null, avgPositionDelta: null,
       citationRate: 0,
       sentimentBreakdown: { positive: 0, neutral: 0, negative: 0 },
@@ -67,16 +67,17 @@ export async function getExecutiveKPIs(projectId: string): Promise<ExecutiveKPIs
   // Fetch all successful runs for these prompts
   const { data: runs } = await supabase
     .from('runs')
-    .select('id, platform')
+    .select('id, platform, raw_response')
     .in('prompt_id', promptIds)
     .eq('status', 'success')
 
-  const runIds = (runs ?? []).map((r) => r.id)
+  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '')
+  const runIds = validRuns.map((r) => r.id)
 
   if (runIds.length === 0) {
     return {
       visibilityScore: 0, visibilityDelta: 0,
-      shareOfVoice: 0, shareOfVoiceDelta: 0,
+      shareOfVoice: 100, shareOfVoiceDelta: 0,
       avgPosition: null, avgPositionDelta: null,
       citationRate: 0,
       sentimentBreakdown: { positive: 0, neutral: 0, negative: 0 },
@@ -85,8 +86,13 @@ export async function getExecutiveKPIs(projectId: string): Promise<ExecutiveKPIs
     }
   }
 
-  // Fetch all mentions and citations for those runs in parallel
-  const [{ data: allMentions }, { data: allCitations }, { data: recentRuns }] = await Promise.all([
+  // Fetch all mentions, citations, and competitors for those runs in parallel
+  const [
+    { data: allMentions },
+    { data: allCitations },
+    { data: recentRuns },
+    { data: competitors }
+  ] = await Promise.all([
     supabase
       .from('mentions')
       .select('run_id, brand_id, mentioned, position, sentiment')
@@ -102,15 +108,32 @@ export async function getExecutiveKPIs(projectId: string): Promise<ExecutiveKPIs
       .in('prompt_id', promptIds)
       .eq('status', 'success')
       .gte('run_date', thirtyDaysAgo),
+    // Competitors
+    supabase
+      .from('competitors')
+      .select('name, domain')
+      .eq('project_id', projectId),
   ])
 
   const mentions = allMentions ?? []
   const citations = allCitations ?? []
 
-  // Share of voice: own brand mentions / total brand mentions
-  const totalMentioned = mentions.filter((m) => m.mentioned).length
+  // Share of voice: own brand mentions / (own brand mentions + competitor mentions)
   const ownMentioned = mentions.filter((m) => m.mentioned && m.brand_id === brandId).length
-  const shareOfVoice = totalMentioned > 0 ? Math.round((ownMentioned / totalMentioned) * 100) : 0
+  let totalMentioned = ownMentioned
+
+  if (competitors && competitors.length > 0) {
+    for (const run of validRuns) {
+      if (!run.raw_response) continue
+      for (const comp of competitors) {
+        if (mentionedInResponse(run.raw_response, comp.name, comp.domain)) {
+          totalMentioned++
+        }
+      }
+    }
+  }
+
+  const shareOfVoice = totalMentioned > 0 ? Math.round((ownMentioned / totalMentioned) * 100) : 100
 
   // Visibility score: % of runs where own brand was mentioned
   const visibilityScore = runIds.length > 0
@@ -208,14 +231,15 @@ export async function getVisibilityTrend(
     .gte('run_date', since)
     .order('run_date', { ascending: true })
 
-  if (!runs || runs.length === 0) return []
+  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '')
+  if (validRuns.length === 0) return []
 
   // Group runs by date, compute % mentioned per day for own brand and competitors
   const byDate = new Map<
     string,
     { total: number; ownMentioned: number; competitorMentioned: Record<string, number> }
   >()
-  for (const run of runs) {
+  for (const run of validRuns) {
     const date = run.run_date.split('T')[0]
     const entry = byDate.get(date) ?? { total: 0, ownMentioned: 0, competitorMentioned: {} }
     entry.total++
@@ -274,15 +298,16 @@ export async function getPlatformBreakdown(projectId: string): Promise<PlatformB
 
   const { data: runs } = await supabase
     .from('runs')
-    .select('id, platform, mentions(brand_id, mentioned, position), citations(brand_id)')
+    .select('id, platform, raw_response, mentions(brand_id, mentioned, position), citations(brand_id)')
     .in('prompt_id', promptIds)
     .eq('status', 'success')
 
-  if (!runs || runs.length === 0) return []
+  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '')
+  if (validRuns.length === 0) return []
 
   const platforms = ['chatgpt', 'gemini']
   return platforms.map((platform) => {
-    const platformRuns = runs.filter((r) => r.platform === platform)
+    const platformRuns = validRuns.filter((r) => r.platform === platform)
     const mentions = platformRuns.flatMap(
       (r) => r.mentions as Array<{ brand_id: string; mentioned: boolean; position: number | null }>
     )
@@ -345,11 +370,13 @@ export async function getIntentVisibility(projectId: string): Promise<IntentVisi
 
   const { data: runs } = await supabase
     .from('runs')
-    .select('id, prompt_id, mentions(brand_id, mentioned)')
+    .select('id, prompt_id, raw_response, mentions(brand_id, mentioned)')
     .in('prompt_id', promptIds)
     .eq('status', 'success')
 
-  if (!runs || runs.length === 0) {
+  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '')
+
+  if (validRuns.length === 0) {
     const intents: Array<'informational' | 'commercial' | 'transactional'> = ['informational', 'commercial', 'transactional']
     return intents.map((intent) => ({
       intent,
@@ -371,7 +398,7 @@ export async function getIntentVisibility(projectId: string): Promise<IntentVisi
     transactional: { total: 0, mentioned: 0 },
   }
 
-  for (const run of runs) {
+  for (const run of validRuns) {
     const intent = promptIntentMap.get(run.prompt_id)
     if (!intent || !stats[intent]) continue
 

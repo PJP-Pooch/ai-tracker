@@ -1,7 +1,7 @@
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type KpiVariant = 'default' | 'gradient-indigo' | 'gradient-purple' | 'gradient-emerald' | 'gradient-amber'
+type KpiVariant = 'default' | 'gradient-indigo' | 'gradient-purple' | 'gradient-emerald' | 'gradient-amber' | 'gradient-sky'
 
 interface KpiCardProps {
   label: string
@@ -20,6 +20,7 @@ const gradientClass: Record<KpiVariant, string> = {
   'gradient-purple':  'gradient-purple shadow-lg shadow-purple-500/20',
   'gradient-emerald': 'gradient-emerald shadow-lg shadow-emerald-500/20',
   'gradient-amber':   'gradient-amber shadow-lg shadow-amber-500/20',
+  'gradient-sky':     'gradient-sky shadow-lg shadow-sky-500/20',
 }
 
 export function KpiCard({

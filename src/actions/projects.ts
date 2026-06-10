@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireRole } from '@/lib/auth/require-role'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
@@ -24,8 +25,8 @@ export async function createProject(formData: FormData) {
 }
 
 export async function updateProject(id: string, formData: FormData) {
-  await requireRole('admin')
-  const supabase = await createClient()
+  const { isAdmin } = await requireRole('admin')
+  const db = isAdmin ? createAdminClient() : await createClient()
 
   const name = (formData.get('name') as string).trim()
   if (!name) return { error: 'Project name is required' }
@@ -37,7 +38,7 @@ export async function updateProject(id: string, formData: FormData) {
     return { error: 'At least one platform must be selected' }
   }
 
-  const { error } = await supabase
+  const { error } = await db
     .from('projects')
     .update({
       name,
@@ -53,10 +54,10 @@ export async function updateProject(id: string, formData: FormData) {
 }
 
 export async function deleteProject(id: string) {
-  await requireRole('admin')
-  const supabase = await createClient()
+  const { isAdmin } = await requireRole('admin')
+  const db = isAdmin ? createAdminClient() : await createClient()
 
-  const { error } = await supabase.from('projects').delete().eq('id', id)
+  const { error } = await db.from('projects').delete().eq('id', id)
   if (error) return { error: error.message }
 
   redirect('/projects')

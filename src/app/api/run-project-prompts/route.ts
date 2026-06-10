@@ -15,13 +15,14 @@ export async function POST(req: NextRequest) {
   const { projectId } = body
   if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 })
 
-  // Verify the user owns this project
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .eq('owner_id', user.id)
-    .single()
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean)
+  const isAdmin = adminEmails.includes(user.email ?? '')
+  const db = isAdmin ? createAdminClient() : supabase
+
+  // Admins can run any project; regular users must own it
+  const projectQuery = db.from('projects').select('id').eq('id', projectId)
+  if (!isAdmin) projectQuery.eq('owner_id', user.id)
+  const { data: project } = await projectQuery.single()
 
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 

@@ -48,6 +48,24 @@ export function UrlCitationsTable({ data }: UrlCitationsTableProps) {
       size: 80,
     },
     {
+      accessorKey: 'last_seen',
+      header: 'Last Seen',
+      cell: ({ getValue }) => {
+        const val = getValue() as string
+        if (!val) return <span className="text-sm text-muted-foreground">—</span>
+        return (
+          <span className="text-sm text-foreground/80">
+            {new Date(val).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </span>
+        )
+      },
+      size: 120,
+    },
+    {
       id: 'owner',
       header: 'Owner',
       cell: ({ row }) => (
@@ -110,7 +128,7 @@ export function UrlCitationsTable({ data }: UrlCitationsTableProps) {
                 const rowClass = isOwn
                   ? 'bg-primary/[0.04] dark:bg-primary/[0.08] hover:bg-primary/[0.08] dark:hover:bg-primary/[0.12]'
                   : isCompetitor
-                    ? 'bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.12]'
+                    ? 'bg-purple-500/[0.04] dark:bg-purple-500/[0.08] hover:bg-purple-500/[0.08] dark:hover:bg-purple-500/[0.12]'
                     : 'hover:bg-muted/30'
 
                 return (

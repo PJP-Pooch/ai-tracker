@@ -9,9 +9,11 @@ import { PositionCell } from './position-cell'
 import { SentimentBadge } from './sentiment-badge'
 import type { RunHistory } from '@/lib/queries/prompts'
 import type { PromptTableRow } from '@/lib/queries/prompts'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createCompetitor } from '@/actions/competitors'
+import { deleteRunGroup } from '@/actions/prompts'
+import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -476,6 +478,12 @@ function getRunGroups(runs: RunHistory[]): RunGroup[] {
   return groups
 }
 
+const intentColors: Record<string, string> = {
+  transactional: 'bg-emerald-100/60 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50',
+  commercial: 'bg-purple-100/60 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-900/50',
+  informational: 'bg-sky-100/60 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/50',
+}
+
 export function ResponseDialog({
   prompt,
   runs,
@@ -486,6 +494,9 @@ export function ResponseDialog({
   projectId,
 }: ResponseDialogProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string>('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const router = useRouter()
 
   const runGroups = getRunGroups(runs)
 
@@ -525,7 +536,7 @@ export function ResponseDialog({
                 {prompt.volume.toLocaleString()} searches/mo
               </Badge>
             )}
-            <Badge variant="outline" className="capitalize px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-100/60 text-sky-700 border-sky-200">
+            <Badge variant="outline" className={cn("capitalize px-2.5 py-0.5 rounded-full text-xs font-medium", intentColors[prompt.intent || 'informational'])}>
               {prompt.intent || 'informational'}
             </Badge>
           </div>
@@ -556,12 +567,15 @@ export function ResponseDialog({
 
             {runGroups.length > 0 && (
               <div className="flex items-center gap-2 self-start sm:self-auto pb-1 sm:pb-0">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans">
                   Scan Date:
                 </span>
                 <select
                   value={groupToUse?.id || ''}
-                  onChange={(e) => setSelectedGroupId(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedGroupId(e.target.value)
+                    setConfirmDelete(false)
+                  }}
                   className="bg-card hover:bg-muted/30 border border-border rounded-lg px-2.5 py-1 text-xs font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none cursor-pointer transition-colors shadow-sm text-foreground"
                 >
                   {runGroups.map((group) => (
@@ -570,6 +584,60 @@ export function ResponseDialog({
                     </option>
                   ))}
                 </select>
+
+                {confirmDelete ? (
+                  <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
+                    <span className="text-[10px] font-semibold text-rose-500 uppercase tracking-wider font-sans">Confirm?</span>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-7 px-2 text-[10px] font-bold"
+                      disabled={isDeleting}
+                      onClick={async () => {
+                        setIsDeleting(true)
+                        try {
+                          const runIds = [currentChatGPT?.id, currentGemini?.id].filter(Boolean) as string[]
+                          if (runIds.length > 0) {
+                            const res = await deleteRunGroup(runIds, projectId)
+                            if (res?.error) {
+                              toast.error(res.error)
+                            } else {
+                              toast.success('Scan run deleted successfully')
+                              onOpenChange(false)
+                              router.refresh()
+                            }
+                          }
+                        } catch (err) {
+                          toast.error('Failed to delete scan run')
+                        } finally {
+                          setIsDeleting(false)
+                          setConfirmDelete(false)
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[10px] font-medium"
+                      disabled={isDeleting}
+                      onClick={() => setConfirmDelete(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 p-0 rounded-lg shrink-0"
+                    title="Delete this scan run"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 className="w-4 h-4 text-muted-foreground hover:text-rose-500 transition-colors" />
+                  </Button>
+                )}
               </div>
             )}
           </div>

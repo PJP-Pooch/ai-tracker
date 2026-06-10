@@ -19,11 +19,14 @@ export async function inviteUser(formData: FormData) {
   if (!email) return { error: 'Email is required' }
 
   const admin = createAdminClient()
-  const { error } = await admin.auth.admin.inviteUserByEmail(email)
-  if (error) return { error: error.message }
+  const { data: userData, error: createError } = await admin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+  })
+  if (createError) return { error: createError.message }
 
   revalidatePath('/admin/members')
-  return { success: `Invite sent to ${email}` }
+  return { success: `Added ${email}. They can now log in via Google.` }
 }
 
 export async function deleteUser(userId: string) {

@@ -17,15 +17,15 @@ import type { Database } from '@/lib/supabase/types'
 type Prompt = Database['public']['Tables']['prompts']['Row']
 
 const priorityColors: Record<string, string> = {
-  high: 'bg-red-100 text-red-700 border-red-200',
-  medium: 'bg-amber-100 text-amber-700 border-amber-200',
-  low: 'bg-neutral-100 text-neutral-600 border-neutral-200',
+  high: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/50',
+  medium: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50',
+  low: 'bg-neutral-100 text-neutral-600 border-neutral-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700',
 }
 
 const intentColors: Record<string, string> = {
-  informational: 'bg-sky-100 text-sky-700 border-sky-200',
-  commercial: 'bg-purple-100 text-purple-700 border-purple-200',
-  transactional: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  informational: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/50',
+  commercial: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-900/50',
+  transactional: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50',
 }
 
 export function PromptsTab({
@@ -145,7 +145,9 @@ export function PromptsTab({
                   <Label>Priority</Label>
                   <Select value={priority} onValueChange={(v) => { if (v) setPriority(v) }}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue>
+                        {priority === 'high' ? 'High' : priority === 'medium' ? 'Medium' : 'Low'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="high">High</SelectItem>
@@ -158,7 +160,9 @@ export function PromptsTab({
                   <Label>Intent</Label>
                   <Select value={intent} onValueChange={(v) => { if (v) setIntent(v) }}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue>
+                        {intent === 'informational' ? 'Informational' : intent === 'commercial' ? 'Commercial' : 'Transactional'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="informational">Informational</SelectItem>

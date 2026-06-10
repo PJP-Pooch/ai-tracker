@@ -8,6 +8,7 @@ export interface CitedDomain {
   competitor_name: string | null
   ownerTag: 'own' | 'competitor' | 'third-party'
   ownerLabel: string
+  last_seen: string
 }
 
 export interface CitedUrl {
@@ -17,6 +18,7 @@ export interface CitedUrl {
   citation_count: number
   brand_name: string | null
   competitor_name: string | null
+  last_seen: string
 }
 
 export interface CitationOverlapEntry {
@@ -78,6 +80,7 @@ export async function getCitationOverlap(projectId: string): Promise<CitationOve
     .from('runs')
     .select(`
       platform,
+      raw_response,
       citations ( domain, brands!brand_id ( name ), competitors!competitor_id ( name ) )
     `)
     .in(
@@ -93,9 +96,11 @@ export async function getCitationOverlap(projectId: string): Promise<CitationOve
 
   if (!runs) return []
 
+  const validRuns = runs.filter((r) => r.raw_response && r.raw_response.trim() !== '')
+
   const counts: Record<string, { name: string; type: 'brand' | 'competitor'; chatgpt: number; gemini: number }> = {}
 
-  for (const run of runs) {
+  for (const run of validRuns) {
     for (const citation of run.citations ?? []) {
       const brand = Array.isArray(citation.brands) ? citation.brands[0] : citation.brands
       const competitor = Array.isArray(citation.competitors) ? citation.competitors[0] : citation.competitors

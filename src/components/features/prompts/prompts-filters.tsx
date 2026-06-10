@@ -45,7 +45,14 @@ export function PromptsFilters() {
           onValueChange={(v) => { if (v) updateFilter('platform', v) }}
         >
           <SelectTrigger className="w-44 bg-background">
-            <SelectValue placeholder="Platform" />
+            <SelectValue placeholder="Platform">
+              {(() => {
+                const val = searchParams.get('platform') ?? 'all'
+                if (val === 'chatgpt') return 'ChatGPT'
+                if (val === 'gemini') return 'Gemini'
+                return 'All Platforms'
+              })()}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Platforms</SelectItem>
@@ -64,7 +71,15 @@ export function PromptsFilters() {
           onValueChange={(v) => { if (v) updateFilter('intent', v) }}
         >
           <SelectTrigger className="w-44 bg-background">
-            <SelectValue placeholder="Intent" />
+            <SelectValue placeholder="Intent">
+              {(() => {
+                const val = searchParams.get('intent') ?? 'all'
+                if (val === 'informational') return 'Informational'
+                if (val === 'commercial') return 'Commercial'
+                if (val === 'transactional') return 'Transactional'
+                return 'All Intents'
+              })()}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Intents</SelectItem>
