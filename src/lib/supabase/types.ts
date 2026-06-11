@@ -67,6 +67,8 @@ export type Database = {
           created_at: string
           platforms: string[]
           schedule_frequency: 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly'
+          brand_positioning: string | null
+          alignment_check_mode: 'off' | 'manual' | 'auto'
         }
         Insert: {
           id?: string
@@ -75,6 +77,8 @@ export type Database = {
           created_at?: string
           platforms?: string[]
           schedule_frequency?: 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly'
+          brand_positioning?: string | null
+          alignment_check_mode?: 'off' | 'manual' | 'auto'
         }
         Update: {
           id?: string
@@ -83,8 +87,54 @@ export type Database = {
           created_at?: string
           platforms?: string[]
           schedule_frequency?: 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly'
+          brand_positioning?: string | null
+          alignment_check_mode?: 'off' | 'manual' | 'auto'
         }
         Relationships: []
+      }
+      run_brand_alignment: {
+        Row: {
+          id: string
+          run_id: string
+          status: 'pending' | 'checking' | 'done' | 'failed'
+          overall_verdict: 'aligned' | 'contradicted' | 'mixed' | 'unchecked' | null
+          brand_brief_snapshot: string | null
+          claims: Json
+          error_message: string | null
+          checked_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          run_id: string
+          status?: 'pending' | 'checking' | 'done' | 'failed'
+          overall_verdict?: 'aligned' | 'contradicted' | 'mixed' | 'unchecked' | null
+          brand_brief_snapshot?: string | null
+          claims?: Json
+          error_message?: string | null
+          checked_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          run_id?: string
+          status?: 'pending' | 'checking' | 'done' | 'failed'
+          overall_verdict?: 'aligned' | 'contradicted' | 'mixed' | 'unchecked' | null
+          brand_brief_snapshot?: string | null
+          claims?: Json
+          error_message?: string | null
+          checked_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'run_brand_alignment_run_id_fkey'
+            columns: ['run_id']
+            isOneToOne: true
+            referencedRelation: 'runs'
+            referencedColumns: ['id']
+          }
+        ]
       }
       brands: {
         Row: {

@@ -17,7 +17,7 @@ export default async function PromptsPage({
   const sp = await searchParams
   const supabase = await createDbClient()
 
-  const [data, { data: brands }, { data: competitors }] = await Promise.all([
+  const [data, { data: brands }, { data: competitors }, { data: project }] = await Promise.all([
     getPromptsWithStats(projectId, {
       platform: sp.platform,
       priority: sp.priority,
@@ -27,12 +27,15 @@ export default async function PromptsPage({
     }),
     supabase.from('brands').select('name').eq('project_id', projectId),
     supabase.from('competitors').select('name').eq('project_id', projectId),
+    supabase.from('projects').select('alignment_check_mode').eq('id', projectId).single(),
   ])
 
   const trackedBrandNames = [
     ...(brands ?? []).map((b) => b.name),
     ...(competitors ?? []).map((c) => c.name),
   ]
+
+  const alignmentCheckMode = ((project as unknown as { alignment_check_mode?: string } | null)?.alignment_check_mode ?? 'off') as 'off' | 'manual' | 'auto'
 
   return (
     <div>
@@ -54,7 +57,7 @@ export default async function PromptsPage({
       </div>
 
       <PromptsFilters />
-      <PromptsTable data={data} projectId={projectId} trackedBrandNames={trackedBrandNames} />
+      <PromptsTable data={data} projectId={projectId} trackedBrandNames={trackedBrandNames} alignmentCheckMode={alignmentCheckMode} />
     </div>
   )
 }

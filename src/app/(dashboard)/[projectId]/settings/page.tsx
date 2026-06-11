@@ -8,6 +8,7 @@ import { CompetitorsTab } from '@/components/features/settings/competitors-tab'
 import { PromptsTab } from '@/components/features/settings/prompts-tab'
 import { ProjectTab } from '@/components/features/settings/project-tab'
 import { MembersTab } from '@/components/features/settings/members-tab'
+import { BrandIntelligenceTab } from '@/components/features/settings/brand-intelligence-tab'
 import type { ProjectMember } from '@/components/features/settings/members-tab'
 
 export default async function SettingsPage({
@@ -33,6 +34,8 @@ export default async function SettingsPage({
     db.from('competitors').select('*').eq('project_id', projectId).order('created_at'),
     db.from('prompts').select('*').eq('project_id', projectId).order('created_at'),
   ])
+
+  const primaryBrand = (brands ?? []).find((b) => b.is_primary) ?? null
 
   let members: ProjectMember[] = []
   if (isAdmin) {
@@ -66,6 +69,7 @@ export default async function SettingsPage({
           <TabsTrigger value="brands">Brands</TabsTrigger>
           <TabsTrigger value="competitors">Competitors</TabsTrigger>
           <TabsTrigger value="prompts">Prompts</TabsTrigger>
+          <TabsTrigger value="intelligence">Brand Intelligence</TabsTrigger>
           {isAdmin && <TabsTrigger value="members">Members</TabsTrigger>}
         </TabsList>
 
@@ -83,6 +87,16 @@ export default async function SettingsPage({
 
         <TabsContent value="prompts">
           <PromptsTab prompts={prompts ?? []} projectId={projectId} isAdmin={isAdmin} />
+        </TabsContent>
+
+        <TabsContent value="intelligence">
+          <BrandIntelligenceTab
+            projectId={projectId}
+            initialPositioning={(project as unknown as { brand_positioning?: string | null }).brand_positioning ?? null}
+            initialCheckMode={((project as unknown as { alignment_check_mode?: string }).alignment_check_mode ?? 'off') as 'off' | 'manual' | 'auto'}
+            isAdmin={isAdmin}
+            primaryBrandDomain={primaryBrand?.domain ?? null}
+          />
         </TabsContent>
 
         {isAdmin && (

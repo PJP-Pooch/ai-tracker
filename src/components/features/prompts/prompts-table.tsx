@@ -33,9 +33,10 @@ interface PromptsTableProps {
   data: PromptTableRow[]
   projectId: string
   trackedBrandNames?: string[]
+  alignmentCheckMode?: 'off' | 'manual' | 'auto'
 }
 
-export function PromptsTable({ data, projectId, trackedBrandNames = [] }: PromptsTableProps) {
+export function PromptsTable({ data, projectId, trackedBrandNames = [], alignmentCheckMode = 'off' }: PromptsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedPrompt, setSelectedPrompt] = useState<PromptTableRow | null>(null)
   const [dialogRuns, setDialogRuns] = useState<RunHistory[]>([])
@@ -261,6 +262,7 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [] }: Prompt
           onOpenChange={setDialogOpen}
           trackedBrandNames={trackedBrandNames}
           projectId={projectId}
+          alignmentCheckMode={alignmentCheckMode}
         />
       )}
     </>

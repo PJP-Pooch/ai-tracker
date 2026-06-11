@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTransition } from 'react'
-import { BarChart3, Brain, FileSearch, Globe, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react'
+import { BarChart3, Brain, FileSearch, Globe, LayoutDashboard, LogOut, Settings, ShieldAlert, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { signOut } from '@/app/(auth)/login/actions'
@@ -17,6 +17,7 @@ interface SidebarProps {
 const navItems = (projectId: string) => [
   { href: `/${projectId}/overview`,    label: 'Overview',        icon: LayoutDashboard },
   { href: `/${projectId}/prompts`,     label: 'Prompt Tracking', icon: Brain },
+  { href: `/${projectId}/alignment`,   label: 'Alignment Issues', icon: ShieldAlert },
   { href: `/${projectId}/outreach`,    label: 'Outreach Finder', icon: FileSearch },
   { href: `/${projectId}/citations`,   label: 'Citations',       icon: Globe },
   { href: `/${projectId}/competitors`, label: 'Competitors',     icon: Users },

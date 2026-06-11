@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { AlignmentPanel } from './alignment-panel'
 
 function extractDiscoveredBrands(rawResponse: string, trackedNames: string[]): string[] {
   const boldPattern = /\*\*([^*]{2,50})\*\*/g
@@ -83,6 +84,7 @@ interface ResponseDialogProps {
   trackedBrandNames?: string[]
   initialDate?: string
   projectId: string
+  alignmentCheckMode?: 'off' | 'manual' | 'auto'
 }
 
 function ResponseContent({
@@ -505,6 +507,7 @@ export function ResponseDialog({
   trackedBrandNames = [],
   initialDate = '',
   projectId,
+  alignmentCheckMode = 'off',
 }: ResponseDialogProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string>('')
   const [isDeleting, setIsDeleting] = useState(false)
@@ -576,6 +579,14 @@ export function ResponseDialog({
               >
                 Side-by-Side
               </TabsTrigger>
+              {alignmentCheckMode !== 'off' && (
+                <TabsTrigger
+                  value="alignment"
+                  className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent px-1 py-1.5 rounded-none bg-transparent hover:text-foreground/80 font-medium text-sm transition-all cursor-pointer"
+                >
+                  Alignment
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {runGroups.length > 0 && (
@@ -662,6 +673,29 @@ export function ResponseDialog({
           <TabsContent value="gemini" className="flex-1 min-h-0 overflow-y-auto pr-1 mt-0 focus-visible:outline-none">
             <ResponseContent run={currentGemini} trackedBrandNames={trackedBrandNames} projectId={projectId} />
           </TabsContent>
+
+          {alignmentCheckMode !== 'off' && (
+            <TabsContent value="alignment" className="flex-1 min-h-0 overflow-y-auto pr-1 mt-0 focus-visible:outline-none">
+              <div className="space-y-5 pt-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      ChatGPT
+                    </h4>
+                    <AlignmentPanel runId={currentChatGPT?.id} checkMode={alignmentCheckMode} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      Gemini
+                    </h4>
+                    <AlignmentPanel runId={currentGemini?.id} checkMode={alignmentCheckMode} />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          )}
 
           <TabsContent value="compare" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full items-stretch min-h-0">

@@ -35,10 +35,7 @@ CREATE POLICY "run_brand_alignment_select" ON public.run_brand_alignment
       SELECT 1 FROM public.runs r
       JOIN public.prompts p ON r.prompt_id = p.id
       WHERE r.id = run_brand_alignment.run_id
-        AND (
-          public.owns_project(p.project_id)
-          OR public.is_project_member(p.project_id)
-        )
+        AND public.owns_project(p.project_id)
     )
   );
 
