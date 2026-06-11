@@ -5,16 +5,39 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireRole } from '@/lib/auth/require-role'
 import { revalidatePath } from 'next/cache'
 
+function normalizeBrand(s: string) {
+  return s.toLowerCase().replace(/&/g, 'and').replace(/\s+/g, ' ').trim()
+}
+
+function detectBranded(promptText: string, brandName: string): boolean {
+  return normalizeBrand(promptText).includes(normalizeBrand(brandName))
+}
+
+async function getPrimaryBrandName(supabase: ReturnType<typeof createAdminClient>, projectId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('brands')
+    .select('name')
+    .eq('project_id', projectId)
+    .eq('is_primary', true)
+    .maybeSingle()
+  return data?.name ?? null
+}
+
 export async function createPrompt(projectId: string, formData: FormData) {
   const { isAdmin } = await requireRole('admin')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
+  const promptText = (formData.get('prompt_text') as string).trim()
+  const brandName = await getPrimaryBrandName(supabase, projectId)
+  const isBranded = brandName ? detectBranded(promptText, brandName) : false
+
   const { error } = await supabase.from('prompts').insert({
     project_id: projectId,
-    prompt_text: (formData.get('prompt_text') as string).trim(),
+    prompt_text: promptText,
     priority: ((formData.get('priority') as string) || 'medium') as 'low' | 'medium' | 'high',
     volume: parseInt(formData.get('volume') as string) || 0,
     intent: ((formData.get('intent') as string) || 'informational') as 'informational' | 'commercial' | 'transactional',
+    is_branded: isBranded,
   })
 
   if (error) return { error: error.message }
@@ -35,11 +58,14 @@ export async function bulkCreatePrompts(projectId: string, promptLines: string) 
 
   if (lines.length === 0) return { error: 'No prompts found' }
 
+  const brandName = await getPrimaryBrandName(supabase, projectId)
+
   const inserts = lines.map((text) => ({
     project_id: projectId,
     prompt_text: text,
     priority: 'medium' as const,
     intent: 'informational' as const,
+    is_branded: brandName ? detectBranded(text, brandName) : false,
   }))
 
   const { error } = await supabase.from('prompts').insert(inserts)
@@ -52,10 +78,12 @@ export async function bulkCreatePrompts(projectId: string, promptLines: string) 
 
 export async function bulkCreatePromptsWithOptions(
   projectId: string,
-  prompts: Array<{ prompt_text: string; intent?: string; priority?: string; volume?: number }>
+  prompts: Array<{ prompt_text: string; intent?: string; priority?: string; volume?: number; is_branded?: boolean }>
 ) {
   const { isAdmin } = await requireRole('admin')
   const supabase = isAdmin ? createAdminClient() : await createClient()
+
+  const brandName = await getPrimaryBrandName(supabase, projectId)
 
   const inserts = prompts.map((p) => ({
     project_id: projectId,
@@ -63,6 +91,7 @@ export async function bulkCreatePromptsWithOptions(
     intent: (p.intent || 'informational') as 'informational' | 'commercial' | 'transactional',
     priority: (p.priority || 'medium') as 'low' | 'medium' | 'high',
     volume: p.volume || 0,
+    is_branded: p.is_branded ?? (brandName ? detectBranded(p.prompt_text.trim(), brandName) : false),
   }))
 
   const { error } = await supabase.from('prompts').insert(inserts)
@@ -77,12 +106,17 @@ export async function updatePrompt(id: string, projectId: string, formData: Form
   const { isAdmin } = await requireRole('admin')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
+  const promptText = (formData.get('prompt_text') as string).trim()
+  const brandName = await getPrimaryBrandName(supabase, projectId)
+  const isBranded = brandName ? detectBranded(promptText, brandName) : false
+
   const { error } = await supabase.from('prompts').update({
-    prompt_text: (formData.get('prompt_text') as string).trim(),
+    prompt_text: promptText,
     priority: (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium',
     volume: parseInt(formData.get('volume') as string) || 0,
     is_active: formData.get('is_active') !== 'false',
     intent: (formData.get('intent') as 'informational' | 'commercial' | 'transactional') || 'informational',
+    is_branded: isBranded,
   }).eq('id', id)
 
   if (error) return { error: error.message }

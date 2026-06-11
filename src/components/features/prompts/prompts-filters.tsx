@@ -89,6 +89,32 @@ export function PromptsFilters() {
           </SelectContent>
         </Select>
       </div>
+
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+          Query Type
+        </label>
+        <Select
+          value={searchParams.get('queryType') ?? 'all'}
+          onValueChange={(v) => { if (v) updateFilter('queryType', v) }}
+        >
+          <SelectTrigger className="w-40 bg-background">
+            <SelectValue placeholder="Query Type">
+              {(() => {
+                const val = searchParams.get('queryType') ?? 'all'
+                if (val === 'branded') return 'Branded'
+                if (val === 'non_branded') return 'Non-Branded'
+                return 'All'
+              })()}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="non_branded">Non-Branded</SelectItem>
+            <SelectItem value="branded">Branded</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   )
 }

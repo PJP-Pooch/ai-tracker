@@ -80,6 +80,11 @@ export function PromptsTab({
                   <Badge className={intentColors[prompt.intent ?? 'informational']} variant="outline">
                     {prompt.intent ?? 'informational'}
                   </Badge>
+                  {prompt.is_branded && (
+                    <Badge variant="outline" className="bg-orange-100/60 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900/50">
+                      Branded
+                    </Badge>
+                  )}
                   {!prompt.is_active && (
                     <Badge variant="outline" className="text-neutral-400">Paused</Badge>
                   )}

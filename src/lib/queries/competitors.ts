@@ -27,16 +27,21 @@ export function mentionedInResponse(text: string, name: string, domain: string):
 export async function getCompetitorVisibility(
   projectId: string,
   days = 30,
-  platform?: string
+  platform?: string,
+  options: { queryType?: 'all' | 'branded' | 'non_branded' } = {}
 ): Promise<CompetitorScore[]> {
   const supabase = await createDbClient()
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
   const halfwayPoint = new Date(Date.now() - (days / 2) * 24 * 60 * 60 * 1000).toISOString()
 
+  let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId)
+  if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
+  if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
+
   const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
     supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
     supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
-    supabase.from('prompts').select('id').eq('project_id', projectId),
+    promptsQuery,
   ])
 
   const promptIds = (prompts ?? []).map((p) => p.id)
@@ -140,13 +145,18 @@ function toZeroScore(id: string, name: string, domain: string, isOwn: boolean): 
 
 export async function getShareOfVoice(
   projectId: string,
+  options: { queryType?: 'all' | 'branded' | 'non_branded' } = {}
 ): Promise<Array<{ name: string; share: number; isOwn: boolean }>> {
   const supabase = await createDbClient()
+
+  let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId)
+  if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
+  if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
 
   const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
     supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
     supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
-    supabase.from('prompts').select('id').eq('project_id', projectId),
+    promptsQuery,
   ])
 
   const promptIds = (prompts ?? []).map((p) => p.id)
@@ -214,13 +224,24 @@ export interface GapMatrixRow {
   } | null
 }
 
-export async function getCompetitorGapMatrix(projectId: string): Promise<GapMatrixRow[]> {
+export async function getCompetitorGapMatrix(
+  projectId: string,
+  options: { queryType?: 'all' | 'branded' | 'non_branded' } = {}
+): Promise<GapMatrixRow[]> {
   const supabase = await createDbClient()
+
+  let promptsQuery = supabase
+    .from('prompts')
+    .select('id, prompt_text, intent')
+    .eq('project_id', projectId)
+    .eq('is_active', true)
+  if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
+  if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
 
   const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
     supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
     supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
-    supabase.from('prompts').select('id, prompt_text, intent').eq('project_id', projectId).eq('is_active', true),
+    promptsQuery,
   ])
 
   const ownBrand = brands?.find((b) => b.is_primary)

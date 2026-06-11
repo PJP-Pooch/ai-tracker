@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { useTheme } from 'next-themes'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MetricInfo } from '@/components/ui/metric-info'
 import { CHART_COLORS } from '@/lib/chart-colors'
 import type { VisibilityTrendPoint } from '@/lib/queries/overview'
 
@@ -42,7 +43,14 @@ export function VisibilityTrendChart({ data, brandName }: VisibilityTrendChartPr
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-base font-semibold">Visibility Score — 30 Days</CardTitle>
+        <div className="flex items-center gap-2">
+          <CardTitle className="text-base font-semibold">Visibility Score — 30 Days</CardTitle>
+          <MetricInfo>
+            <p><strong>What this shows:</strong> The percentage of AI responses that mentioned your brand, grouped by day.</p>
+            <p><strong>With multiple daily runs:</strong> Each scan of each prompt is one data point. Scanning 4× daily across 10 prompts = 40 responses per platform per day. The daily % smooths out individual AI variation — more runs give a more reliable signal.</p>
+            <p><strong>Competitors:</strong> Lines show how often each competitor appeared in the same set of responses, so you&apos;re comparing on equal footing.</p>
+          </MetricInfo>
+        </div>
         <label className="flex items-center gap-2 text-sm font-normal cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors">
           <input
             type="checkbox"

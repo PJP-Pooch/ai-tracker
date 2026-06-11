@@ -1,4 +1,5 @@
 import { KpiCard } from './kpi-card'
+import { MetricInfo } from '@/components/ui/metric-info'
 import { BarChart3, Hash, Link2, ThumbsUp } from 'lucide-react'
 import type { ExecutiveKPIs } from '@/lib/queries/overview'
 
@@ -33,43 +34,78 @@ export function KpiGrid({ kpis }: KpiGridProps) {
         value={kpis.visibilityScore}
         delta={kpis.visibilityDelta}
         deltaLabel=" vs 30d"
-        description="Weighted AI presence score"
+        description="% of AI responses mentioning your brand"
         variant="gradient-indigo"
         icon={BarChart3}
+        tooltip={
+          <>
+            <p><strong>What it is:</strong> The percentage of AI responses that mentioned your brand, across all prompts and all scans.</p>
+            <p><strong>With multiple daily runs:</strong> Each scan counts as a separate response. If you scan 4× daily across 10 prompts, that&apos;s 40 data points per platform per day — more scans means a more reliable average, not a higher score.</p>
+            <p><strong>Note:</strong> This averages all historical runs. The trend chart below shows how the daily rate changes over time.</p>
+          </>
+        }
       />
       <KpiCard
         label="Share of AI Voice"
         value={kpis.shareOfVoice}
         suffix="%"
         delta={kpis.shareOfVoiceDelta || null}
-        description="Brand mentions / total mentions"
+        description="Your mentions vs all tracked brands"
         variant="gradient-purple"
         icon={VoiceIcon}
+        tooltip={
+          <>
+            <p><strong>What it is:</strong> Your brand&apos;s mentions as a share of total mentions across all brands and competitors tracked.</p>
+            <p><strong>Example:</strong> If AI mentions your brand 6 times and competitors 4 times across all responses, your Share of Voice = 60%.</p>
+            <p><strong>Tip:</strong> Use the <strong>Non-Branded</strong> filter for a fair comparison — branded queries naturally inflate your score.</p>
+          </>
+        }
       />
       <KpiCard
         label="Avg Position"
         value={kpis.avgPosition !== null ? kpis.avgPosition : '—'}
         delta={kpis.avgPositionDelta}
-        description="Mean rank in AI responses"
+        description="Mean rank when brand appears in a list"
         variant="gradient-sky"
         icon={Hash}
+        tooltip={
+          <>
+            <p><strong>What it is:</strong> The average rank position when your brand appears in an AI response list. Position 1 = recommended first.</p>
+            <p><strong>How it&apos;s counted:</strong> Only responses where your brand was mentioned contribute to this average. Responses where you weren&apos;t mentioned are excluded.</p>
+            <p>Lower is better — position 1 or 2 means AI consistently leads with your brand.</p>
+          </>
+        }
       />
       <KpiCard
         label="Citation Rate"
         value={kpis.citationRate}
         suffix="%"
-        description="Prompts with brand URL cited"
+        description="Responses with your domain URL cited"
         variant="gradient-emerald"
         icon={Link2}
+        tooltip={
+          <>
+            <p><strong>What it is:</strong> The percentage of AI responses that included a direct link to your domain — not just a mention, but an actual URL citation.</p>
+            <p>A high citation rate means AI is actively pointing users to your site. This is especially valuable as AI-generated answers increasingly replace traditional search results.</p>
+          </>
+        }
       />
       <div className="rounded-xl p-5 gradient-amber shadow-lg shadow-amber-500/20 border-0 flex flex-col justify-between h-full text-white">
         <div>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3 bg-white/20">
             <ThumbsUp className="w-5 h-5 text-white" />
           </div>
-          <p className="text-xs font-medium uppercase tracking-wide mb-1 text-white/70">
-            Sentiment Split
-          </p>
+          <div className="flex items-center gap-1.5 mb-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-white/70">
+              Sentiment Split
+            </p>
+            <MetricInfo light>
+              <p><strong>What it is:</strong> How AI describes your brand when it mentions you, based on all mentions across all scans.</p>
+              <p><strong>Positive</strong> — recommended favorably or with praise.</p>
+              <p><strong>Neutral</strong> — factual mention without strong tone.</p>
+              <p><strong>Negative</strong> — criticism, caveats, or warnings attached to your brand.</p>
+            </MetricInfo>
+          </div>
           <div className="space-y-3 mt-2">
             <div className="grid grid-cols-3 gap-1 text-center">
               <div className="flex flex-col">

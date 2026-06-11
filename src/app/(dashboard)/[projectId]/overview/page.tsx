@@ -4,21 +4,27 @@ import { ShareOfVoiceGauge } from '@/components/features/overview/share-of-voice
 import { VisibilityTrendChart } from '@/components/features/overview/visibility-trend-chart'
 import { PlatformBreakdownTable } from '@/components/features/overview/platform-breakdown-table'
 import { IntentBreakdown } from '@/components/features/overview/intent-breakdown'
+import { QueryTypeFilter } from '@/components/features/shared/query-type-filter'
 import { createDbClient } from '@/lib/supabase/db'
 
 export default async function OverviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>
+  searchParams: Promise<Record<string, string>>
 }) {
   const { projectId } = await params
+  const sp = await searchParams
+  const queryType = (sp.queryType as 'all' | 'branded' | 'non_branded') || 'all'
+  const opts = { queryType }
   const supabase = await createDbClient()
 
   const [kpis, trend, platformBreakdown, intentVisibility, primaryBrand] = await Promise.all([
-    getExecutiveKPIs(projectId),
-    getVisibilityTrend(projectId, 30),
-    getPlatformBreakdown(projectId),
-    getIntentVisibility(projectId),
+    getExecutiveKPIs(projectId, opts),
+    getVisibilityTrend(projectId, 30, opts),
+    getPlatformBreakdown(projectId, opts),
+    getIntentVisibility(projectId, opts),
     supabase
       .from('brands')
       .select('name')
@@ -38,11 +44,14 @@ export default async function OverviewPage({
             AI brand visibility summary across all platforms
           </p>
         </div>
-        {kpis.lastScanned && (
-          <div className="text-xs sm:text-sm text-muted-foreground bg-muted/40 border rounded-lg px-3 py-1.5 self-start sm:self-auto">
-            Last scanned: <span className="font-medium text-foreground">{new Date(kpis.lastScanned).toLocaleString()}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-3 flex-wrap self-start sm:self-auto">
+          <QueryTypeFilter />
+          {kpis.lastScanned && (
+            <div className="text-xs sm:text-sm text-muted-foreground bg-muted/40 border rounded-lg px-3 py-1.5">
+              Last scanned: <span className="font-medium text-foreground">{new Date(kpis.lastScanned).toLocaleString()}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div>

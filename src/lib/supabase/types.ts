@@ -161,6 +161,7 @@ export type Database = {
           volume: number
           priority: 'low' | 'medium' | 'high'
           is_active: boolean
+          is_branded: boolean
           intent: 'informational' | 'commercial' | 'transactional'
           created_at: string
         }
@@ -171,6 +172,7 @@ export type Database = {
           volume?: number
           priority?: 'low' | 'medium' | 'high'
           is_active?: boolean
+          is_branded?: boolean
           intent?: 'informational' | 'commercial' | 'transactional'
           created_at?: string
         }
@@ -181,6 +183,7 @@ export type Database = {
           volume?: number
           priority?: 'low' | 'medium' | 'high'
           is_active?: boolean
+          is_branded?: boolean
           intent?: 'informational' | 'commercial' | 'transactional'
           created_at?: string
         }

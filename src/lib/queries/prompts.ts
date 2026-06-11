@@ -6,6 +6,7 @@ export interface PromptTableRow {
   priority: 'low' | 'medium' | 'high'
   volume: number
   isActive: boolean
+  isBranded: boolean
   intent: 'informational' | 'commercial' | 'transactional'
   chatgpt_position: number | null
   chatgpt_mentioned: boolean
@@ -26,6 +27,7 @@ export async function getPromptsWithStats(
     priority?: string
     search?: string
     intent?: string
+    queryType?: 'all' | 'branded' | 'non_branded'
   } = {}
 ): Promise<PromptTableRow[]> {
   const supabase = await createDbClient()
@@ -38,6 +40,7 @@ export async function getPromptsWithStats(
       priority,
       volume,
       is_active,
+      is_branded,
       intent,
       runs (
         id,
@@ -60,6 +63,8 @@ export async function getPromptsWithStats(
       if (filters.intent && p.intent !== filters.intent) return false
       if (filters.search && !p.prompt_text.toLowerCase().includes(filters.search.toLowerCase()))
         return false
+      if (filters.queryType === 'branded' && !p.is_branded) return false
+      if (filters.queryType === 'non_branded' && p.is_branded) return false
       return true
     })
     .map((prompt) => {
@@ -99,6 +104,7 @@ export async function getPromptsWithStats(
         priority: prompt.priority,
         volume: prompt.volume,
         isActive: prompt.is_active,
+        isBranded: prompt.is_branded ?? false,
         intent: (prompt.intent ?? 'informational') as 'informational' | 'commercial' | 'transactional',
         chatgpt_position: chatgptMention?.position ?? null,
         chatgpt_mentioned: !!chatgptMention,

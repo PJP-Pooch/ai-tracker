@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MetricInfo } from '@/components/ui/metric-info'
 
 type KpiVariant = 'default' | 'gradient-indigo' | 'gradient-purple' | 'gradient-emerald' | 'gradient-amber' | 'gradient-sky'
 
@@ -10,6 +11,7 @@ interface KpiCardProps {
   deltaLabel?: string
   suffix?: string
   description?: string
+  tooltip?: React.ReactNode
   variant?: KpiVariant
   icon?: React.ComponentType<{ className?: string }>
 }
@@ -24,7 +26,7 @@ const gradientClass: Record<KpiVariant, string> = {
 }
 
 export function KpiCard({
-  label, value, delta, deltaLabel, suffix, description,
+  label, value, delta, deltaLabel, suffix, description, tooltip,
   variant = 'default', icon: Icon,
 }: KpiCardProps) {
   const isGradient = variant !== 'default'
@@ -58,12 +60,15 @@ export function KpiCard({
           <Icon className={cn('w-5 h-5', isGradient ? 'text-white' : 'text-primary')} />
         </div>
       )}
-      <p className={cn(
-        'text-xs font-medium uppercase tracking-wide mb-1',
-        isGradient ? 'text-white/70' : 'text-muted-foreground',
-      )}>
-        {label}
-      </p>
+      <div className="flex items-center gap-1.5 mb-1">
+        <p className={cn(
+          'text-xs font-medium uppercase tracking-wide',
+          isGradient ? 'text-white/70' : 'text-muted-foreground',
+        )}>
+          {label}
+        </p>
+        {tooltip && <MetricInfo light={isGradient}>{tooltip}</MetricInfo>}
+      </div>
       <div className="flex items-end justify-between gap-2">
         <span className={cn(
           'text-3xl font-bold leading-none',

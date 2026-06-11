@@ -23,6 +23,7 @@ export default async function PromptsPage({
       priority: sp.priority,
       search: sp.search,
       intent: sp.intent,
+      queryType: sp.queryType as 'all' | 'branded' | 'non_branded' | undefined,
     }),
     supabase.from('brands').select('name').eq('project_id', projectId),
     supabase.from('competitors').select('name').eq('project_id', projectId),

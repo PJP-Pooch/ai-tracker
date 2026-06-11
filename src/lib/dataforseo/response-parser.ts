@@ -114,7 +114,16 @@ export function parseMentions(params: {
 export function parseCitations(
   annotations: Array<{ url: string; title: string; snippet: string }>
 ): CitationRow[] {
-  return annotations.map((a, index) => {
+  const seenUrls = new Set<string>()
+  const uniqueAnnotations = annotations.filter((a) => {
+    if (!a.url) return false
+    const normalizedUrl = a.url.trim().toLowerCase().replace(/\/$/, '')
+    if (seenUrls.has(normalizedUrl)) return false
+    seenUrls.add(normalizedUrl)
+    return true
+  })
+
+  return uniqueAnnotations.map((a, index) => {
     let domain = ''
     try {
       domain = new URL(a.url).hostname.replace(/^www\./, '')

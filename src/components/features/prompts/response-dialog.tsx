@@ -392,33 +392,46 @@ function ResponseContent({
         )}
       </div>
 
-      {run.citations.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Sources ({run.citations.length})
-          </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {run.citations.map((c, i) => (
-              <div key={i} className="flex items-start gap-2.5 p-2.5 bg-muted/10 hover:bg-muted/20 border border-border/50 rounded-xl transition-colors">
-                <span className="flex items-center justify-center text-[10px] font-bold text-muted-foreground bg-muted w-5 h-5 rounded-full shrink-0 mt-0.5 border border-border/80">
-                  {c.position}
-                </span>
-                <div className="min-w-0">
-                  <a
-                    href={c.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-medium text-primary hover:underline truncate block"
-                  >
-                    {c.title || c.domain}
-                  </a>
-                  <span className="text-[10px] text-muted-foreground">{c.domain}</span>
+      {run.citations.length > 0 && (() => {
+        const seen = new Set<string>()
+        const uniqueCitations = run.citations.filter((c) => {
+          const url = c.url?.trim().toLowerCase().replace(/\/$/, '')
+          if (!url) return false
+          if (seen.has(url)) return false
+          seen.add(url)
+          return true
+        })
+
+        if (uniqueCitations.length === 0) return null
+
+        return (
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Sources ({uniqueCitations.length})
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {uniqueCitations.map((c, i) => (
+                <div key={i} className="flex items-start gap-2.5 p-2.5 bg-muted/10 hover:bg-muted/20 border border-border/50 rounded-xl transition-colors">
+                  <span className="flex items-center justify-center text-[10px] font-bold text-muted-foreground bg-muted w-5 h-5 rounded-full shrink-0 mt-0.5 border border-border/80">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <a
+                      href={c.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium text-primary hover:underline truncate block"
+                    >
+                      {c.title || c.domain}
+                    </a>
+                    <span className="text-[10px] text-muted-foreground">{c.domain}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

@@ -17,6 +17,7 @@ interface PromptRunsListProps {
     priority: string | null
     volume: number | null
     intent: string | null
+    is_branded?: boolean | null
   }
   projectId: string
 }
@@ -35,6 +36,7 @@ export function PromptRunsList({ runs, brandId, trackedBrandNames, prompt, proje
     priority: (prompt.priority as 'low' | 'medium' | 'high') || 'medium',
     volume: prompt.volume || 0,
     isActive: true,
+    isBranded: prompt.is_branded ?? false,
     intent: (prompt.intent as 'informational' | 'commercial' | 'transactional') || 'informational',
     chatgpt_position: null,
     chatgpt_mentioned: false,

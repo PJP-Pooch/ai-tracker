@@ -70,25 +70,35 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [] }: Prompt
     {
       accessorKey: 'intent',
       header: 'Intent',
-      cell: ({ getValue }) => {
-        const intent = getValue() as string
+      cell: ({ row }) => {
+        const intent = row.original.intent
         return (
-          <Badge
-            variant="outline"
-            className={cn(
-              'text-[10px] font-semibold uppercase tracking-wider',
-              intent === 'transactional'
-                ? 'bg-emerald-100/60 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50'
-                : intent === 'commercial'
-                  ? 'bg-purple-100/60 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-900/50'
-                  : 'bg-sky-100/60 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/50'
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[10px] font-semibold uppercase tracking-wider',
+                intent === 'transactional'
+                  ? 'bg-emerald-100/60 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50'
+                  : intent === 'commercial'
+                    ? 'bg-purple-100/60 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-900/50'
+                    : 'bg-sky-100/60 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/50'
+              )}
+            >
+              {intent ?? 'informational'}
+            </Badge>
+            {row.original.isBranded && (
+              <Badge
+                variant="outline"
+                className="text-[10px] font-semibold uppercase tracking-wider bg-orange-100/60 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900/50"
+              >
+                Branded
+              </Badge>
             )}
-          >
-            {intent ?? 'informational'}
-          </Badge>
+          </div>
         )
       },
-      size: 110,
+      size: 150,
     },
 
     {
