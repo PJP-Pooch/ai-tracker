@@ -61,7 +61,7 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [], alignmen
         <Link
           href={`/${projectId}/prompts/${row.original.id}`}
           onClick={(e) => e.stopPropagation()}
-          className="text-left text-sm font-medium text-foreground hover:text-primary transition-colors"
+          className="text-left text-sm font-medium text-foreground hover:text-primary transition-colors block whitespace-normal break-words"
         >
           {row.original.promptText}
         </Link>
@@ -218,7 +218,11 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [], alignmen
                   onClick={() => openDialog(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
+                    <TableCell 
+                      key={cell.id} 
+                      style={{ width: cell.column.getSize() }}
+                      className={cell.column.id === 'promptText' ? 'whitespace-normal break-words py-3.5 min-w-[280px]' : undefined}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

@@ -251,37 +251,40 @@ export type Database = {
         Row: {
           id: string
           prompt_id: string
-          platform: 'chatgpt' | 'gemini'
+          platform: 'chatgpt' | 'gemini' | 'chatgpt_scraper' | 'gemini_scraper'
           model_name: string | null
           run_date: string
           raw_response: string | null
           status: 'pending' | 'running' | 'success' | 'failed'
           error_message: string | null
           cost_usd: number | null
+          scraper_payload: Json | null
           created_at: string
         }
         Insert: {
           id?: string
           prompt_id: string
-          platform: 'chatgpt' | 'gemini'
+          platform: 'chatgpt' | 'gemini' | 'chatgpt_scraper' | 'gemini_scraper'
           model_name?: string | null
           run_date?: string
           raw_response?: string | null
           status?: 'pending' | 'running' | 'success' | 'failed'
           error_message?: string | null
           cost_usd?: number | null
+          scraper_payload?: Json | null
           created_at?: string
         }
         Update: {
           id?: string
           prompt_id?: string
-          platform?: 'chatgpt' | 'gemini'
+          platform?: 'chatgpt' | 'gemini' | 'chatgpt_scraper' | 'gemini_scraper'
           model_name?: string | null
           run_date?: string
           raw_response?: string | null
           status?: 'pending' | 'running' | 'success' | 'failed'
           error_message?: string | null
           cost_usd?: number | null
+          scraper_payload?: Json | null
           created_at?: string
         }
         Relationships: [

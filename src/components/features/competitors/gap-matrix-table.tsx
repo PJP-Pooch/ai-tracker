@@ -95,7 +95,7 @@ export function GapMatrixTable({ data, competitorNames, ownBrandName }: GapMatri
             ) : (
               data.map((row) => (
                 <TableRow key={row.promptId} className="hover:bg-muted/20">
-                  <TableCell className="font-medium text-sm text-foreground/90">{row.promptText}</TableCell>
+                  <TableCell className="font-medium text-sm text-foreground/90 whitespace-normal break-words py-3 min-w-[280px]">{row.promptText}</TableCell>
                   <TableCell>
                     <Badge
                       variant="outline"

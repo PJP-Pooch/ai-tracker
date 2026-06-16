@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getLLMResponse, type LLMPlatform } from '@/lib/dataforseo/llm-responses'
+import { getLLMScraper } from '@/lib/dataforseo/llm-scraper'
 import { dataForSEORateLimiter } from '@/lib/dataforseo/rate-limiter'
 import { parseMentions, parseCitations } from '@/lib/dataforseo/response-parser'
 import { analyzeSentimentBatch } from '@/lib/openai/sentiment'
@@ -36,18 +37,21 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
   const result: PipelineResult = { succeeded: 0, failed: 0, errors: [] }
 
   const rawPlatforms = prompt.platforms ?? ['chatgpt', 'gemini']
-  const platformsToRun = rawPlatforms.map(p => p === 'chatgpt' ? 'chat_gpt' : p) as LLMPlatform[]
 
-  for (const platform of platformsToRun) {
-    const modelName = PLATFORM_MODELS[platform]
+  for (const platform of rawPlatforms) {
     let runId: string | null = null
+    const modelName = platform === 'chatgpt_scraper' 
+      ? 'gpt-4o' 
+      : (platform === 'gemini_scraper'
+          ? 'gemini-1.5-pro'
+          : (platform === 'chatgpt' ? PLATFORM_MODELS['chat_gpt'] : PLATFORM_MODELS['gemini']))
 
     // Create run record
     const { data: run, error: runError } = await supabase
       .from('runs')
       .insert({
         prompt_id: prompt.id,
-        platform: platform === 'chat_gpt' ? 'chatgpt' : 'gemini',
+        platform: platform as 'chatgpt' | 'gemini' | 'chatgpt_scraper' | 'gemini_scraper',
         model_name: modelName,
         status: 'running',
       })
@@ -65,16 +69,70 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
       // Respect rate limit
       await dataForSEORateLimiter.acquire()
 
-      // Call DataForSEO
-      const llmResult = await getLLMResponse({
-        platform,
-        userPrompt: prompt.prompt_text,
-        modelName,
-        webSearch: true,
-      })
+      // Helper function to retry on rate limit or service unavailable errors
+      const executeWithRetry = async <T>(apiCall: () => Promise<T>): Promise<T> => {
+        let retries = 3
+        let delay = 3000 // 3 seconds initial delay
+        while (true) {
+          try {
+            return await apiCall()
+          } catch (error) {
+            const isRateLimit = error instanceof Error && (
+              error.message.includes('rate_limit_exceeded') ||
+              error.message.includes('Service Unavailable') ||
+              error.message.includes('429')
+            )
+            if (isRateLimit && retries > 0) {
+              console.warn(`Upstream rate limit/service unavailable on ${platform}, retrying in ${delay}ms... (${retries} attempts remaining). Error: ${error.message}`)
+              await new Promise((resolve) => setTimeout(resolve, delay))
+              retries--
+              delay *= 2 // Exponential backoff
+            } else {
+              throw error
+            }
+          }
+        }
+      }
+
+      let responseText = ''
+      let costUsd = 0
+      let annotations: any[] = []
+      let scraperPayload: any = null
+
+      if (platform === 'chatgpt_scraper' || platform === 'gemini_scraper') {
+        // Call LLM Scraper
+        const se = platform === 'chatgpt_scraper' ? 'chat_gpt' : 'gemini'
+        const scraperResult = await executeWithRetry(() => getLLMScraper({
+          keyword: prompt.prompt_text,
+          se,
+        }))
+        responseText = scraperResult.markdown || ''
+        costUsd = scraperResult.costUsd
+        annotations = (scraperResult.sources ?? []).map((s) => ({
+          url: s.url,
+          title: s.title || s.source_name || '',
+          snippet: s.snippet || '',
+        }))
+        scraperPayload = {
+          ads: scraperResult.ads,
+          products: scraperResult.products,
+          local_businesses: scraperResult.localBusinesses,
+        }
+      } else {
+        const platformToUse = platform === 'chatgpt' ? 'chat_gpt' : platform
+        const llmResult = await executeWithRetry(() => getLLMResponse({
+          platform: platformToUse as LLMPlatform,
+          userPrompt: prompt.prompt_text,
+          modelName,
+          webSearch: true,
+        }))
+        responseText = llmResult.content || ''
+        costUsd = llmResult.costUsd
+        annotations = llmResult.annotations || []
+      }
 
       // Parse citations
-      const citationRows = parseCitations(llmResult.annotations)
+      const citationRows = parseCitations(annotations)
 
       // Match citations to owned brands and competitors by domain
       const enrichedCitations = citationRows.map((c) => ({
@@ -96,7 +154,7 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
       // Parse mentions for each tracked brand
       const mentionInputs = prompt.brands.map((brand) => {
         const parsed = parseMentions({
-          responseText: llmResult.content,
+          responseText: responseText,
           brandName: brand.name,
           brandDomain: brand.domain,
         })
@@ -141,8 +199,9 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
           .from('runs')
           .update({
             status: 'success',
-            raw_response: llmResult.content,
-            cost_usd: llmResult.costUsd,
+            raw_response: responseText,
+            cost_usd: costUsd,
+            scraper_payload: scraperPayload,
           })
           .eq('id', runId),
       ])

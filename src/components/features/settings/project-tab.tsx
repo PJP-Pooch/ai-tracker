@@ -97,6 +97,38 @@ export function ProjectTab({ project, isAdmin }: { project: Project; isAdmin: bo
                     />
                     <span>Gemini</span>
                   </label>
+                  <label className="flex items-center gap-2.5 text-sm font-medium cursor-pointer border rounded-lg p-3 hover:bg-muted/50 transition-colors w-full sm:w-auto min-w-[140px]">
+                    <input
+                      type="checkbox"
+                      checked={platforms.includes('chatgpt_scraper')}
+                      disabled={!isAdmin}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setPlatforms([...platforms, 'chatgpt_scraper'])
+                        } else {
+                          setPlatforms(platforms.filter((p) => p !== 'chatgpt_scraper'))
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer accent-primary"
+                    />
+                    <span>ChatGPT Scraper</span>
+                  </label>
+                  <label className="flex items-center gap-2.5 text-sm font-medium cursor-pointer border rounded-lg p-3 hover:bg-muted/50 transition-colors w-full sm:w-auto min-w-[140px]">
+                    <input
+                      type="checkbox"
+                      checked={platforms.includes('gemini_scraper')}
+                      disabled={!isAdmin}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setPlatforms([...platforms, 'gemini_scraper'])
+                        } else {
+                          setPlatforms(platforms.filter((p) => p !== 'gemini_scraper'))
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer accent-primary"
+                    />
+                    <span>Gemini Scraper</span>
+                  </label>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Select which AI models to query and track visibility metrics for.

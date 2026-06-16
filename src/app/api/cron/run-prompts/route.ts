@@ -69,18 +69,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: 'No prompts scheduled for this slot', total: 0 })
   }
 
-  // Fan out — run each prompt through the pipeline using its project platforms
-  const results = await Promise.allSettled(
-    promptsToRun.map((prompt) => {
-      const project = (prompt as unknown as {
-        projects: {
-          platforms: string[]
-          brands: { id: string; name: string; domain: string }[]
-          competitors: { id: string; domain: string }[]
-        }
-      }).projects
+  // Run sequentially to avoid concurrent rate limits on 3rd party APIs
+  const results: PromiseSettledResult<any>[] = []
+  for (const prompt of promptsToRun) {
+    const project = (prompt as unknown as {
+      projects: {
+        platforms: string[]
+        brands: { id: string; name: string; domain: string }[]
+        competitors: { id: string; domain: string }[]
+      }
+    }).projects
 
-      return runPromptPipeline({
+    try {
+      const res = await runPromptPipeline({
         id: prompt.id,
         prompt_text: prompt.prompt_text,
         project_id: prompt.project_id,
@@ -88,8 +89,11 @@ export async function GET(req: NextRequest) {
         competitors: project?.competitors ?? [],
         platforms: project?.platforms ?? ['chatgpt', 'gemini'],
       })
-    })
-  )
+      results.push({ status: 'fulfilled', value: res })
+    } catch (err) {
+      results.push({ status: 'rejected', reason: err })
+    }
+  }
 
   const succeeded = results.filter((r) => r.status === 'fulfilled').length
   const failed = results.filter((r) => r.status === 'rejected').length

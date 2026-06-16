@@ -394,6 +394,164 @@ function ResponseContent({
         )}
       </div>
 
+      {/* Scraper Structured Data (Ads, Products, Local Map Listings) */}
+      {(() => {
+        const ads = run.scraper_payload?.ads ?? []
+        const products = run.scraper_payload?.products ?? []
+        const localBusinesses = run.scraper_payload?.local_businesses ?? []
+
+        if (ads.length === 0 && products.length === 0 && localBusinesses.length === 0) return null
+
+        return (
+          <div className="space-y-6 pt-2 border-t border-border/40">
+            {/* Sponsored Ads */}
+            {ads.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  Sponsored Search Ads ({ads.length})
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {ads.map((ad: any, i: number) => (
+                    <div key={i} className="flex flex-col p-4 bg-amber-500/[0.02] border border-amber-500/10 rounded-xl hover:border-amber-500/25 transition-all shadow-sm group">
+                      <div className="flex items-center gap-2 mb-2">
+                        {ad.advertiser?.favicon_url ? (
+                          <img src={ad.advertiser.favicon_url} alt="" className="w-4 h-4 rounded" />
+                        ) : (
+                          <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-950/40 text-[9px] font-bold text-amber-600 flex items-center justify-center">Ad</span>
+                        )}
+                        <span className="text-xs font-semibold text-foreground/80 truncate">{ad.advertiser?.name || ad.domain}</span>
+                        <span className="ml-auto text-[9px] font-bold uppercase tracking-wider text-amber-600 bg-amber-100 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-500/20">Sponsored</span>
+                      </div>
+                      <a
+                        href={ad.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-semibold text-primary hover:underline group-hover:text-primary/95 line-clamp-1 mb-1"
+                      >
+                        {ad.title}
+                      </a>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{ad.snippet}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Products & Shopping */}
+            {products.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                  Product & Shopping Listings ({products.length})
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {products.map((p: any, i: number) => {
+                    const formattedPrice = p.price != null ? new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: p.currency || 'USD',
+                    }).format(p.price) : null
+
+                    return (
+                      <div key={i} className="flex flex-col bg-card border border-border/80 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-border/100 transition-all group">
+                        {p.images?.[0] && (
+                          <div className="relative aspect-square w-full bg-muted/30 flex items-center justify-center p-2 overflow-hidden border-b border-border/40">
+                            <img
+                              src={p.images[0]}
+                              alt={p.title}
+                              className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
+                            />
+                            {p.tag && (
+                              <span className="absolute top-2 left-2 text-[9px] font-bold uppercase tracking-wider bg-indigo-500 text-white px-1.5 py-0.5 rounded shadow-sm">
+                                {p.tag}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div className="p-3 flex-1 flex flex-col justify-between gap-1.5">
+                          <div>
+                            <a
+                              href={p.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-semibold text-foreground hover:text-primary line-clamp-2 leading-snug"
+                            >
+                              {p.title}
+                            </a>
+                            <span className="text-[10px] text-muted-foreground mt-0.5 block">{p.domain || p.merchants}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-1 mt-1">
+                            <span className="text-sm font-bold text-foreground">{formattedPrice || 'N/A'}</span>
+                            {p.rating != null && (
+                              <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-500 bg-amber-500/5 border border-amber-500/20 px-1.5 py-0.25 rounded-md">
+                                ★ {typeof p.rating === 'object' ? p.rating?.value ?? 0 : p.rating}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Local Businesses */}
+            {localBusinesses.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Local Map Listings ({localBusinesses.length})
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {localBusinesses.map((b: any, i: number) => {
+                    const ratingVal = typeof b.rating === 'object' ? b.rating?.value : b.rating
+                    const votes = typeof b.rating === 'object' ? b.rating?.votes_count : b.reviews_count
+
+                    return (
+                      <div key={i} className="flex flex-col p-4 bg-emerald-500/[0.01] border border-emerald-500/10 rounded-xl hover:border-emerald-500/25 transition-all shadow-sm group">
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <h5 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {b.url ? (
+                              <a href={b.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                {b.title}
+                              </a>
+                            ) : (
+                              b.title
+                            )}
+                          </h5>
+                          {ratingVal != null && (
+                            <div className="flex items-center gap-1 shrink-0 bg-amber-500/5 border border-amber-500/20 px-2 py-0.5 rounded-lg text-xs font-bold text-amber-500">
+                              <span>★ {ratingVal}</span>
+                              {votes != null && <span className="text-[10px] text-muted-foreground font-normal font-sans">({votes})</span>}
+                            </div>
+                          )}
+                        </div>
+                        {b.description && <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{b.description}</p>}
+                        <div className="mt-auto space-y-1 text-[11px] text-muted-foreground">
+                          {b.address && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-emerald-500 font-bold shrink-0">📍</span>
+                              <span className="truncate">{b.address}</span>
+                            </div>
+                          )}
+                          {b.phone && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-emerald-500 font-bold shrink-0">📞</span>
+                              <span>{b.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {run.citations.length > 0 && (() => {
         const seen = new Set<string>()
         const uniqueCitations = run.citations.filter((c) => {
@@ -444,6 +602,8 @@ interface RunGroup {
   displayLabel: string
   chatgptRun?: RunHistory
   geminiRun?: RunHistory
+  chatgptScraperRun?: RunHistory
+  geminiScraperRun?: RunHistory
 }
 
 function getRunGroups(runs: RunHistory[]): RunGroup[] {
@@ -467,6 +627,10 @@ function getRunGroups(runs: RunHistory[]): RunGroup[] {
         match.chatgptRun = run
       } else if (run.platform === 'gemini' && !match.geminiRun) {
         match.geminiRun = run
+      } else if (run.platform === 'chatgpt_scraper' && !match.chatgptScraperRun) {
+        match.chatgptScraperRun = run
+      } else if (run.platform === 'gemini_scraper' && !match.geminiScraperRun) {
+        match.geminiScraperRun = run
       }
     } else {
       const date = new Date(run.run_date)
@@ -486,6 +650,8 @@ function getRunGroups(runs: RunHistory[]): RunGroup[] {
         displayLabel,
         chatgptRun: run.platform === 'chatgpt' ? run : undefined,
         geminiRun: run.platform === 'gemini' ? run : undefined,
+        chatgptScraperRun: run.platform === 'chatgpt_scraper' ? run : undefined,
+        geminiScraperRun: run.platform === 'gemini_scraper' ? run : undefined,
       })
     }
   }
@@ -524,6 +690,8 @@ export function ResponseDialog({
           (g) =>
             g.chatgptRun?.run_date === initialDate ||
             g.geminiRun?.run_date === initialDate ||
+            g.chatgptScraperRun?.run_date === initialDate ||
+            g.geminiScraperRun?.run_date === initialDate ||
             g.id === initialDate ||
             g.dateStr === initialDate
         )
@@ -538,12 +706,14 @@ export function ResponseDialog({
 
   const currentChatGPT = groupToUse?.chatgptRun
   const currentGemini = groupToUse?.geminiRun
+  const currentChatGPTScraper = groupToUse?.chatgptScraperRun
+  const currentGeminiScraper = groupToUse?.geminiScraperRun
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-5xl w-[95vw] md:w-[90vw] h-[85vh] max-h-[90vh] flex flex-col p-6 gap-4 overflow-hidden rounded-2xl shadow-2xl border border-border/80 bg-background">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="text-lg font-bold leading-snug tracking-tight text-foreground sm:text-xl pr-6">
+          <DialogTitle className="text-lg font-bold leading-snug tracking-tight text-foreground sm:text-xl pr-6 whitespace-normal break-words">
             {prompt.promptText}
           </DialogTitle>
           <div className="flex gap-2 mt-1.5 flex-wrap">
@@ -560,7 +730,7 @@ export function ResponseDialog({
 
         <Tabs defaultValue="chatgpt" className="flex flex-col flex-1 min-h-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-2 mb-2 flex-shrink-0">
-            <TabsList className="flex-shrink-0 justify-start bg-transparent rounded-none h-auto p-0 gap-6 border-none">
+            <TabsList className="flex-shrink-0 justify-start bg-transparent rounded-none h-auto p-0 gap-4 sm:gap-6 border-none flex-wrap">
               <TabsTrigger
                 value="chatgpt"
                 className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent px-1 py-1.5 rounded-none bg-transparent hover:text-foreground/80 font-medium text-sm transition-all cursor-pointer"
@@ -568,10 +738,22 @@ export function ResponseDialog({
                 ChatGPT
               </TabsTrigger>
               <TabsTrigger
+                value="chatgpt_scraper"
+                className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent px-1 py-1.5 rounded-none bg-transparent hover:text-foreground/80 font-medium text-sm transition-all cursor-pointer"
+              >
+                ChatGPT Scraper
+              </TabsTrigger>
+              <TabsTrigger
                 value="gemini"
                 className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent px-1 py-1.5 rounded-none bg-transparent hover:text-foreground/80 font-medium text-sm transition-all cursor-pointer"
               >
                 Gemini
+              </TabsTrigger>
+              <TabsTrigger
+                value="gemini_scraper"
+                className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent px-1 py-1.5 rounded-none bg-transparent hover:text-foreground/80 font-medium text-sm transition-all cursor-pointer"
+              >
+                Gemini Scraper
               </TabsTrigger>
               <TabsTrigger
                 value="compare"
@@ -620,7 +802,12 @@ export function ResponseDialog({
                       onClick={async () => {
                         setIsDeleting(true)
                         try {
-                          const runIds = [currentChatGPT?.id, currentGemini?.id].filter(Boolean) as string[]
+                          const runIds = [
+                            currentChatGPT?.id,
+                            currentGemini?.id,
+                            currentChatGPTScraper?.id,
+                            currentGeminiScraper?.id,
+                          ].filter(Boolean) as string[]
                           if (runIds.length > 0) {
                             const res = await deleteRunGroup(runIds, projectId)
                             if (res?.error) {
@@ -670,54 +857,85 @@ export function ResponseDialog({
             <ResponseContent run={currentChatGPT} trackedBrandNames={trackedBrandNames} projectId={projectId} />
           </TabsContent>
 
+          <TabsContent value="chatgpt_scraper" className="flex-1 min-h-0 overflow-y-auto pr-1 mt-0 focus-visible:outline-none">
+            <ResponseContent run={currentChatGPTScraper} trackedBrandNames={trackedBrandNames} projectId={projectId} />
+          </TabsContent>
+
           <TabsContent value="gemini" className="flex-1 min-h-0 overflow-y-auto pr-1 mt-0 focus-visible:outline-none">
             <ResponseContent run={currentGemini} trackedBrandNames={trackedBrandNames} projectId={projectId} />
+          </TabsContent>
+
+          <TabsContent value="gemini_scraper" className="flex-1 min-h-0 overflow-y-auto pr-1 mt-0 focus-visible:outline-none">
+            <ResponseContent run={currentGeminiScraper} trackedBrandNames={trackedBrandNames} projectId={projectId} />
           </TabsContent>
 
           {alignmentCheckMode !== 'off' && (
             <TabsContent value="alignment" className="flex-1 min-h-0 overflow-y-auto pr-1 mt-0 focus-visible:outline-none">
               <div className="space-y-5 pt-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      ChatGPT
-                    </h4>
-                    <AlignmentPanel runId={currentChatGPT?.id} checkMode={alignmentCheckMode} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-500" />
-                      Gemini
-                    </h4>
-                    <AlignmentPanel runId={currentGemini?.id} checkMode={alignmentCheckMode} />
-                  </div>
-                </div>
+                {(() => {
+                  const activeRuns = [
+                    { label: 'ChatGPT', run: currentChatGPT, color: 'bg-emerald-500' },
+                    { label: 'ChatGPT Scraper', run: currentChatGPTScraper, color: 'bg-emerald-600' },
+                    { label: 'Gemini', run: currentGemini, color: 'bg-blue-500' },
+                    { label: 'Gemini Scraper', run: currentGeminiScraper, color: 'bg-blue-600' },
+                  ].filter((item) => !!item.run)
+
+                  return (
+                    <div className={cn(
+                      "grid gap-6",
+                      activeRuns.length >= 3 ? "grid-cols-1 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1 md:grid-cols-2"
+                    )}>
+                      {activeRuns.map(({ label, run, color }) => (
+                        <div key={label}>
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <span className={cn("w-2 h-2 rounded-full", color)} />
+                            {label}
+                          </h4>
+                          <AlignmentPanel runId={run?.id} checkMode={alignmentCheckMode} />
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
               </div>
             </TabsContent>
           )}
 
           <TabsContent value="compare" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full items-stretch min-h-0">
-              <div className="flex flex-col min-h-0 h-full border-r border-border/40 pr-6 last:border-r-0 last:pr-0">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-                  ChatGPT
-                </h3>
-                <div className="flex-1 overflow-y-auto pr-2 min-h-0">
-                  <ResponseContent run={currentChatGPT} trackedBrandNames={trackedBrandNames} projectId={projectId} />
+            {(() => {
+              const activeRuns = [
+                { label: 'ChatGPT', run: currentChatGPT, color: 'bg-emerald-500 shadow-emerald-500/50' },
+                { label: 'ChatGPT Scraper', run: currentChatGPTScraper, color: 'bg-emerald-600 shadow-emerald-600/50' },
+                { label: 'Gemini', run: currentGemini, color: 'bg-blue-500 shadow-blue-500/50' },
+                { label: 'Gemini Scraper', run: currentGeminiScraper, color: 'bg-blue-600 shadow-blue-600/50' },
+              ].filter((item) => !!item.run)
+
+              return (
+                <div className={cn(
+                  "grid gap-6 h-full items-stretch min-h-0",
+                  activeRuns.length === 4
+                    ? "grid-cols-1 lg:grid-cols-2 xl:grid-cols-4"
+                    : activeRuns.length === 3
+                      ? "grid-cols-1 lg:grid-cols-3"
+                      : "grid-cols-1 md:grid-cols-2"
+                )}>
+                  {activeRuns.map(({ label, run, color }, index) => (
+                    <div key={label} className={cn(
+                      "flex flex-col min-h-0 h-full",
+                      index < activeRuns.length - 1 && "lg:border-r lg:border-border/40 lg:pr-6"
+                    )}>
+                      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                        <span className={cn("w-2 h-2 rounded-full shadow-sm", color)} />
+                        {label}
+                      </h3>
+                      <div className="flex-1 overflow-y-auto pr-2 min-h-0">
+                        <ResponseContent run={run} trackedBrandNames={trackedBrandNames} projectId={projectId} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <div className="flex flex-col min-h-0 h-full">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
-                  Gemini
-                </h3>
-                <div className="flex-1 overflow-y-auto pr-2 min-h-0">
-                  <ResponseContent run={currentGemini} trackedBrandNames={trackedBrandNames} projectId={projectId} />
-                </div>
-              </div>
-            </div>
+              )
+            })()}
           </TabsContent>
         </Tabs>
       </DialogContent>

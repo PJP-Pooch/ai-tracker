@@ -123,10 +123,15 @@ export async function getPromptsWithStats(
 
 export interface RunHistory {
   id: string
-  platform: 'chatgpt' | 'gemini'
+  platform: 'chatgpt' | 'gemini' | 'chatgpt_scraper' | 'gemini_scraper'
   run_date: string
   raw_response: string | null
   status: string
+  scraper_payload?: {
+    ads?: any[]
+    products?: any[]
+    local_businesses?: any[]
+  } | null
   mentions: Array<{
     brand_id: string | null
     position: number | null
@@ -159,6 +164,7 @@ export async function getPromptRunHistory(
       run_date,
       raw_response,
       status,
+      scraper_payload,
       mentions ( brand_id, position, sentiment, mentioned, snippet, mention_type, brands!brand_id ( name ) ),
       citations ( domain, url, title, position )
     `)
@@ -170,3 +176,4 @@ export async function getPromptRunHistory(
   const runs = (data ?? []) as RunHistory[]
   return runs.filter((r) => r.raw_response && r.raw_response.trim() !== '')
 }
+

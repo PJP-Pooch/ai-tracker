@@ -48,25 +48,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'No active prompts', succeeded: 0, failed: 0, total: 0 })
   }
 
-  const pipelineResults = await Promise.all(
-    prompts.map((prompt) => {
-      const p = prompt as unknown as {
-        projects: {
-          platforms: string[]
-          brands: { id: string; name: string; domain: string }[]
-          competitors: { id: string; domain: string }[]
-        }
+  const pipelineResults = []
+  for (const prompt of prompts) {
+    const p = prompt as unknown as {
+      projects: {
+        platforms: string[]
+        brands: { id: string; name: string; domain: string }[]
+        competitors: { id: string; domain: string }[]
       }
-      return runPromptPipeline({
-        id: prompt.id,
-        prompt_text: prompt.prompt_text,
-        project_id: prompt.project_id,
-        brands: p.projects?.brands ?? [],
-        competitors: p.projects?.competitors ?? [],
-        platforms: p.projects?.platforms ?? ['chatgpt', 'gemini'],
-      })
+    }
+    const res = await runPromptPipeline({
+      id: prompt.id,
+      prompt_text: prompt.prompt_text,
+      project_id: prompt.project_id,
+      brands: p.projects?.brands ?? [],
+      competitors: p.projects?.competitors ?? [],
+      platforms: p.projects?.platforms ?? ['chatgpt', 'gemini'],
     })
-  )
+    pipelineResults.push(res)
+  }
 
   const succeeded = pipelineResults.reduce((sum, r) => sum + r.succeeded, 0)
   const failed = pipelineResults.reduce((sum, r) => sum + r.failed, 0)

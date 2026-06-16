@@ -4,9 +4,10 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { BarChart3, Plus, Shield } from 'lucide-react'
+import { BarChart3, Plus, Shield, Pause } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { RunNowButton } from '@/components/features/prompts/run-now-button'
-import { formatLastScanned } from '@/lib/utils'
+import { formatLastScanned, cn } from '@/lib/utils'
 
 export default async function ProjectsPage() {
   const supabase = await createClient()
@@ -22,7 +23,7 @@ export default async function ProjectsPage() {
 
   const { data: projects } = await db
     .from('projects')
-    .select('id, name, created_at')
+    .select('id, name, created_at, schedule_frequency')
     .order('created_at', { ascending: false })
 
   const { data: latestRuns } = await db
@@ -68,13 +69,42 @@ export default async function ProjectsPage() {
           {projects.map((project) => {
             const lastScanned = lastScannedByProject[project.id]
             const formattedLastScanned = formatLastScanned(lastScanned)
+            const isPaused = project.schedule_frequency === 'paused'
+            const scheduleLabels: Record<string, string> = {
+              paused: 'Paused',
+              daily: 'Daily',
+              twice_daily: '2x Daily',
+              four_times_daily: '4x Daily',
+              weekly: 'Weekly'
+            }
+            const scheduleLabel = scheduleLabels[project.schedule_frequency ?? 'four_times_daily'] ?? 'Active'
+
             return (
-              <div key={project.id} className="relative group rounded-xl border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow">
+              <div
+                key={project.id}
+                className={cn(
+                  "relative group rounded-xl border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow",
+                  isPaused && "opacity-95 border-border/80"
+                )}
+              >
                 <Link href={`/${project.id}/overview`} className="block p-6">
                   <div className="space-y-1.5 mb-2">
                     <h3 className="font-semibold leading-none tracking-tight flex items-center gap-2 text-lg">
-                      <BarChart3 className="w-5 h-5 text-indigo-600" />
-                      {project.name}
+                      <BarChart3 className={cn("w-5 h-5 transition-colors", isPaused ? "text-muted-foreground/60 group-hover:text-muted-foreground/80" : "text-indigo-600")} />
+                      <span className={cn("transition-colors", isPaused && "text-foreground/80")}>
+                        {project.name}
+                      </span>
+                      {isPaused ? (
+                        <Badge variant="secondary" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 dark:bg-amber-500/20 border-amber-500/20 gap-1 font-medium text-[10px] py-0 px-1.5 shrink-0 select-none">
+                          <Pause className="w-2.5 h-2.5 shrink-0" />
+                          Paused
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 gap-1 font-medium text-[10px] py-0 px-1.5 shrink-0 select-none">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                          {scheduleLabel}
+                        </Badge>
+                      )}
                     </h3>
                     <p className="text-xs text-muted-foreground">
                       Created {new Date(project.created_at).toLocaleDateString()}

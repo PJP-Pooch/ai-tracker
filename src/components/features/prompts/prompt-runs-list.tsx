@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { PositionCell } from './position-cell'
 import { SentimentBadge } from './sentiment-badge'
 import { ResponseDialog } from './response-dialog'
@@ -25,9 +26,13 @@ interface PromptRunsListProps {
 export function PromptRunsList({ runs, brandId, trackedBrandNames, prompt, projectId }: PromptRunsListProps) {
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [chatgptExpanded, setChatgptExpanded] = useState(false)
+  const [geminiExpanded, setGeminiExpanded] = useState(false)
 
   const chatgptRuns = runs.filter((r) => r.platform === 'chatgpt')
+  const chatgptScraperRuns = runs.filter((r) => r.platform === 'chatgpt_scraper')
   const geminiRuns = runs.filter((r) => r.platform === 'gemini')
+  const geminiScraperRuns = runs.filter((r) => r.platform === 'gemini_scraper')
 
   // Map the prompt structure to the PromptTableRow shape for the dialog
   const promptTableRow: PromptTableRow = {
@@ -56,67 +61,203 @@ export function PromptRunsList({ runs, brandId, trackedBrandNames, prompt, proje
   }
 
   return (
-    <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {[
-          { label: 'ChatGPT', runs: chatgptRuns },
-          { label: 'Gemini', runs: geminiRuns },
-        ].map(({ label, runs: platformRuns }) => (
-          <Card key={label} className="border border-border/85 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">{label} — Last 30 Days</CardTitle>
-              <p className="text-xs text-muted-foreground">Click a row to view the full response & sources</p>
-            </CardHeader>
-            <CardContent>
-              {platformRuns.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4">No runs yet.</p>
-              ) : (
-                <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
-                  {platformRuns.map((run) => {
-                    const primaryMention = run.mentions
-                      .filter((m) => m.brand_id === brandId && m.mentioned)
-                      .sort((a, b) => (a.position ?? 99) - (b.position ?? 99))[0]
+    <div className="space-y-6">
+      {/* ChatGPT Collapsible Section */}
+      <div className="border border-border/80 rounded-xl bg-card overflow-hidden shadow-sm">
+        <button
+          onClick={() => setChatgptExpanded(!chatgptExpanded)}
+          className="w-full flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors border-b border-border/60 text-left cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <h2 className="text-base font-semibold text-foreground">ChatGPT Platforms</h2>
+            <span className="text-[11px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 px-2 py-0.5 rounded-full font-medium">
+              {chatgptRuns.length + chatgptScraperRuns.length} runs
+            </span>
+          </div>
+          {chatgptExpanded ? (
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          )}
+        </button>
 
-                    return (
-                      <div
-                        key={run.id}
-                        onClick={() => handleRunClick(run.run_date)}
-                        className="flex items-center gap-4 py-2 px-3 rounded-lg border border-border/40 hover:bg-muted/40 hover:border-border/80 transition-all cursor-pointer group"
-                      >
-                        <span className="text-xs font-medium text-muted-foreground w-32 shrink-0 group-hover:text-foreground transition-colors">
-                          {new Date(run.run_date).toLocaleString('en-GB', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                        <div className="flex-1 min-w-0 flex items-center gap-3">
-                          <PositionCell
-                            position={primaryMention?.position ?? null}
-                            mentioned={!!primaryMention}
-                          />
-                          <SentimentBadge
-                            sentiment={
-                              primaryMention?.sentiment as
-                                | 'positive'
-                                | 'neutral'
-                                | 'negative'
-                                | null
-                            }
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground font-medium group-hover:text-primary transition-colors">
-                          {run.citations.length} source{run.citations.length !== 1 ? 's' : ''} →
-                        </span>
+        {chatgptExpanded && (
+          <div className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {[
+                { label: 'ChatGPT', runs: chatgptRuns },
+                { label: 'ChatGPT Scraper', runs: chatgptScraperRuns },
+              ].map(({ label, runs: platformRuns }) => (
+                <Card key={label} className="border border-border/85 shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold">{label} — Last 30 Days</CardTitle>
+                    <p className="text-xs text-muted-foreground">Click a row to view the full response & sources</p>
+                  </CardHeader>
+                  <CardContent>
+                    {platformRuns.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4">No runs yet.</p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
+                        {platformRuns.map((run) => {
+                          const primaryMention = run.mentions
+                            .filter((m) => m.brand_id === brandId && m.mentioned)
+                            .sort((a, b) => (a.position ?? 99) - (b.position ?? 99))[0]
+
+                          return (
+                            <div
+                              key={run.id}
+                              onClick={() => handleRunClick(run.run_date)}
+                              className="flex flex-col gap-2 py-2.5 px-3 rounded-lg border border-border/40 hover:bg-muted/40 hover:border-border/80 hover:shadow-sm transition-all cursor-pointer group"
+                            >
+                              {/* Top row: Date & Citations Count */}
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-muted-foreground group-hover:text-foreground transition-colors">
+                                  {new Date(run.run_date).toLocaleString('en-GB', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                                <span className="text-muted-foreground group-hover:text-indigo-600 font-medium transition-colors shrink-0 flex items-center gap-0.5">
+                                  {run.citations.length} source{run.citations.length !== 1 ? 's' : ''} &rarr;
+                                </span>
+                              </div>
+
+                              {/* Bottom row: Mention status with Position and Sentiment Badges */}
+                              <div className="flex items-center gap-2 h-7">
+                                {primaryMention ? (
+                                  <>
+                                    <PositionCell
+                                      position={primaryMention.position ?? null}
+                                      mentioned={true}
+                                    />
+                                    <SentimentBadge
+                                      sentiment={
+                                        primaryMention.sentiment as
+                                          | 'positive'
+                                          | 'neutral'
+                                          | 'negative'
+                                          | null
+                                      }
+                                    />
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground/50 italic font-normal">
+                                    Not mentioned
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Gemini Collapsible Section */}
+      <div className="border border-border/80 rounded-xl bg-card overflow-hidden shadow-sm">
+        <button
+          onClick={() => setGeminiExpanded(!geminiExpanded)}
+          className="w-full flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors border-b border-border/60 text-left cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <h2 className="text-base font-semibold text-foreground">Gemini Platforms</h2>
+            <span className="text-[11px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 px-2 py-0.5 rounded-full font-medium">
+              {geminiRuns.length + geminiScraperRuns.length} runs
+            </span>
+          </div>
+          {geminiExpanded ? (
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          )}
+        </button>
+
+        {geminiExpanded && (
+          <div className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {[
+                { label: 'Gemini', runs: geminiRuns },
+                { label: 'Gemini Scraper', runs: geminiScraperRuns },
+              ].map(({ label, runs: platformRuns }) => (
+                <Card key={label} className="border border-border/85 shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold">{label} — Last 30 Days</CardTitle>
+                    <p className="text-xs text-muted-foreground">Click a row to view the full response & sources</p>
+                  </CardHeader>
+                  <CardContent>
+                    {platformRuns.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4">No runs yet.</p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
+                        {platformRuns.map((run) => {
+                          const primaryMention = run.mentions
+                            .filter((m) => m.brand_id === brandId && m.mentioned)
+                            .sort((a, b) => (a.position ?? 99) - (b.position ?? 99))[0]
+
+                          return (
+                            <div
+                              key={run.id}
+                              onClick={() => handleRunClick(run.run_date)}
+                              className="flex flex-col gap-2 py-2.5 px-3 rounded-lg border border-border/40 hover:bg-muted/40 hover:border-border/80 hover:shadow-sm transition-all cursor-pointer group"
+                            >
+                              {/* Top row: Date & Citations Count */}
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-muted-foreground group-hover:text-foreground transition-colors">
+                                  {new Date(run.run_date).toLocaleString('en-GB', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                                <span className="text-muted-foreground group-hover:text-indigo-600 font-medium transition-colors shrink-0 flex items-center gap-0.5">
+                                  {run.citations.length} source{run.citations.length !== 1 ? 's' : ''} &rarr;
+                                </span>
+                              </div>
+
+                              {/* Bottom row: Mention status with Position and Sentiment Badges */}
+                              <div className="flex items-center gap-2 h-7">
+                                {primaryMention ? (
+                                  <>
+                                    <PositionCell
+                                      position={primaryMention.position ?? null}
+                                      mentioned={true}
+                                    />
+                                    <SentimentBadge
+                                      sentiment={
+                                        primaryMention.sentiment as
+                                          | 'positive'
+                                          | 'neutral'
+                                          | 'negative'
+                                          | null
+                                      }
+                                    />
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground/50 italic font-normal">
+                                    Not mentioned
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <ResponseDialog
@@ -128,6 +269,6 @@ export function PromptRunsList({ runs, brandId, trackedBrandNames, prompt, proje
         initialDate={selectedDate}
         projectId={projectId}
       />
-    </>
+    </div>
   )
 }

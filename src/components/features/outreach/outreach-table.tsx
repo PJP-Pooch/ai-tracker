@@ -265,7 +265,7 @@ export function OutreachTable({ data }: OutreachTableProps) {
                           {row.original.prompts.map((p, idx) => (
                             <div key={idx} className="p-3 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-muted/5 transition-colors">
                               <div className="space-y-1 max-w-xl text-left">
-                                <span className="font-medium text-foreground">{p.promptText}</span>
+                                <span className="font-medium text-foreground whitespace-normal break-words block">{p.promptText}</span>
                               </div>
                               <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                                 <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={p.url}>

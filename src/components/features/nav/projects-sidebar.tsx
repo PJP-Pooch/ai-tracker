@@ -1,16 +1,19 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useTransition } from 'react'
-import { BarChart3, FolderOpen, LogOut, Plus, Shield } from 'lucide-react'
+import { BarChart3, FolderOpen, LogOut, Plus, Shield, ArrowRightLeft } from 'lucide-react'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { signOut } from '@/app/(auth)/login/actions'
+import { cn } from '@/lib/utils'
 
 interface ProjectsSidebarProps {
   isAdmin?: boolean
 }
 
 export function ProjectsSidebar({ isAdmin }: ProjectsSidebarProps) {
+  const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
   return (
@@ -37,22 +40,49 @@ export function ProjectsSidebar({ isAdmin }: ProjectsSidebarProps) {
         </p>
         <Link
           href="/projects"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 bg-sidebar-primary text-sidebar-primary-foreground font-medium shadow-sm"
+          className={cn(
+            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
+            pathname === '/projects'
+              ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium shadow-sm'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+          )}
         >
           <FolderOpen className="w-4 h-4 shrink-0" />
           Projects
         </Link>
         <Link
           href="/projects/new"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className={cn(
+            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
+            pathname === '/projects/new'
+              ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium shadow-sm'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+          )}
         >
           <Plus className="w-4 h-4 shrink-0" />
           New Project
         </Link>
+        <Link
+          href="/projects/comparison"
+          className={cn(
+            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
+            pathname === '/projects/comparison'
+              ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium shadow-sm'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+          )}
+        >
+          <ArrowRightLeft className="w-4 h-4 shrink-0" />
+          Compare APIs
+        </Link>
         {isAdmin && (
           <Link
             href="/admin/members"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className={cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
+              pathname === '/admin/members'
+                ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium shadow-sm'
+                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            )}
           >
             <Shield className="w-4 h-4 shrink-0" />
             Members
