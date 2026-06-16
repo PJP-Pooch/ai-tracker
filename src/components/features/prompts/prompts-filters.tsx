@@ -115,6 +115,30 @@ export function PromptsFilters() {
           </SelectContent>
         </Select>
       </div>
+
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+          Group By
+        </label>
+        <Select
+          value={searchParams.get('groupBy') ?? 'category'}
+          onValueChange={(v) => { if (v) updateFilter('groupBy', v) }}
+        >
+          <SelectTrigger className="w-40 bg-background">
+            <SelectValue placeholder="Group By">
+              {(() => {
+                const val = searchParams.get('groupBy') ?? 'category'
+                if (val === 'none') return 'None (List)'
+                return 'Category'
+              })()}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="category">Category</SelectItem>
+            <SelectItem value="none">None (List)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 'use server'
 
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireRole } from '@/lib/auth/require-role'
 import { revalidatePath } from 'next/cache'
@@ -11,8 +12,8 @@ export async function saveBrandIntelligenceSettings(
   positioning: string,
   checkMode: 'off' | 'manual' | 'auto'
 ) {
-  await requireRole('admin')
-  const supabase = createAdminClient()
+  const { user, isAdmin } = await requireRole('analyst')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase
     .from('projects')
@@ -28,8 +29,8 @@ export async function saveBrandIntelligenceSettings(
 export async function generateBrandBriefFromHomepage(
   projectId: string
 ): Promise<{ brief?: string; error?: string }> {
-  await requireRole('admin')
-  const supabase = createAdminClient()
+  const { user, isAdmin } = await requireRole('analyst')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { data: brand } = await supabase
     .from('brands')

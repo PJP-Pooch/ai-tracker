@@ -8,6 +8,7 @@ export interface PromptTableRow {
   isActive: boolean
   isBranded: boolean
   intent: 'informational' | 'commercial' | 'transactional'
+  category: string | null
   chatgpt_position: number | null
   chatgpt_mentioned: boolean
   chatgpt_sentiment: 'positive' | 'neutral' | 'negative' | null
@@ -42,6 +43,7 @@ export async function getPromptsWithStats(
       is_active,
       is_branded,
       intent,
+      category,
       runs (
         id,
         platform,
@@ -106,6 +108,7 @@ export async function getPromptsWithStats(
         isActive: prompt.is_active,
         isBranded: prompt.is_branded ?? false,
         intent: (prompt.intent ?? 'informational') as 'informational' | 'commercial' | 'transactional',
+        category: prompt.category,
         chatgpt_position: chatgptMention?.position ?? null,
         chatgpt_mentioned: !!chatgptMention,
         chatgpt_sentiment: chatgptMention?.sentiment ?? null,

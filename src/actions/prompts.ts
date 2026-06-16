@@ -24,12 +24,13 @@ async function getPrimaryBrandName(supabase: ReturnType<typeof createAdminClient
 }
 
 export async function createPrompt(projectId: string, formData: FormData) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const promptText = (formData.get('prompt_text') as string).trim()
   const brandName = await getPrimaryBrandName(supabase, projectId)
   const isBranded = brandName ? detectBranded(promptText, brandName) : false
+  const category = (formData.get('category') as string)?.trim() || null
 
   const { error } = await supabase.from('prompts').insert({
     project_id: projectId,
@@ -38,6 +39,7 @@ export async function createPrompt(projectId: string, formData: FormData) {
     volume: parseInt(formData.get('volume') as string) || 0,
     intent: ((formData.get('intent') as string) || 'informational') as 'informational' | 'commercial' | 'transactional',
     is_branded: isBranded,
+    category,
   })
 
   if (error) return { error: error.message }
@@ -47,8 +49,8 @@ export async function createPrompt(projectId: string, formData: FormData) {
   return { success: true }
 }
 
-export async function bulkCreatePrompts(projectId: string, promptLines: string) {
-  const { isAdmin } = await requireRole('admin')
+export async function bulkCreatePrompts(projectId: string, promptLines: string, category?: string) {
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const lines = promptLines
@@ -59,6 +61,7 @@ export async function bulkCreatePrompts(projectId: string, promptLines: string) 
   if (lines.length === 0) return { error: 'No prompts found' }
 
   const brandName = await getPrimaryBrandName(supabase, projectId)
+  const cleanCategory = category?.trim() || null
 
   const inserts = lines.map((text) => ({
     project_id: projectId,
@@ -66,6 +69,7 @@ export async function bulkCreatePrompts(projectId: string, promptLines: string) 
     priority: 'medium' as const,
     intent: 'informational' as const,
     is_branded: brandName ? detectBranded(text, brandName) : false,
+    category: cleanCategory,
   }))
 
   const { error } = await supabase.from('prompts').insert(inserts)
@@ -78,9 +82,9 @@ export async function bulkCreatePrompts(projectId: string, promptLines: string) 
 
 export async function bulkCreatePromptsWithOptions(
   projectId: string,
-  prompts: Array<{ prompt_text: string; intent?: string; priority?: string; volume?: number; is_branded?: boolean }>
+  prompts: Array<{ prompt_text: string; intent?: string; priority?: string; volume?: number; is_branded?: boolean; category?: string }>
 ) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const brandName = await getPrimaryBrandName(supabase, projectId)
@@ -92,6 +96,7 @@ export async function bulkCreatePromptsWithOptions(
     priority: (p.priority || 'medium') as 'low' | 'medium' | 'high',
     volume: p.volume || 0,
     is_branded: p.is_branded ?? (brandName ? detectBranded(p.prompt_text.trim(), brandName) : false),
+    category: p.category?.trim() || null,
   }))
 
   const { error } = await supabase.from('prompts').insert(inserts)
@@ -103,12 +108,13 @@ export async function bulkCreatePromptsWithOptions(
 }
 
 export async function updatePrompt(id: string, projectId: string, formData: FormData) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const promptText = (formData.get('prompt_text') as string).trim()
   const brandName = await getPrimaryBrandName(supabase, projectId)
   const isBranded = brandName ? detectBranded(promptText, brandName) : false
+  const category = (formData.get('category') as string)?.trim() || null
 
   const { error } = await supabase.from('prompts').update({
     prompt_text: promptText,
@@ -117,6 +123,7 @@ export async function updatePrompt(id: string, projectId: string, formData: Form
     is_active: formData.get('is_active') !== 'false',
     intent: (formData.get('intent') as 'informational' | 'commercial' | 'transactional') || 'informational',
     is_branded: isBranded,
+    category,
   }).eq('id', id)
 
   if (error) return { error: error.message }
@@ -127,7 +134,7 @@ export async function updatePrompt(id: string, projectId: string, formData: Form
 }
 
 export async function deletePrompt(id: string, projectId: string) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('prompts').delete().eq('id', id)
@@ -139,7 +146,7 @@ export async function deletePrompt(id: string, projectId: string) {
 }
 
 export async function deleteRunGroup(runIds: string[], projectId: string) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('runs').delete().in('id', runIds)

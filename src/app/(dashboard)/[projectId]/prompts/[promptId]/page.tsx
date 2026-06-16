@@ -29,7 +29,7 @@ export default async function PromptDetailPage({
 
   const { data: prompt } = await db
     .from('prompts')
-    .select('id, prompt_text, priority, volume, intent')
+    .select('id, prompt_text, priority, volume, intent, category')
     .eq('id', promptId)
     .single()
 

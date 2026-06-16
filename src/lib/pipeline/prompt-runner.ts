@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getLLMResponse, type LLMPlatform } from '@/lib/dataforseo/llm-responses'
 import { getLLMScraper } from '@/lib/dataforseo/llm-scraper'
 import { dataForSEORateLimiter } from '@/lib/dataforseo/rate-limiter'
+import { checkSERPRanking } from '@/lib/dataforseo/organic-serp'
 import { parseMentions, parseCitations } from '@/lib/dataforseo/response-parser'
 import { analyzeSentimentBatch } from '@/lib/openai/sentiment'
 import { PLATFORM_MODELS } from './cost-tracker'
@@ -99,6 +100,8 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
       let annotations: any[] = []
       let scraperPayload: any = null
 
+      let fanOutRows: any[] = []
+
       if (platform === 'chatgpt_scraper' || platform === 'gemini_scraper') {
         // Call LLM Scraper
         const se = platform === 'chatgpt_scraper' ? 'chat_gpt' : 'gemini'
@@ -117,6 +120,56 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
           ads: scraperResult.ads,
           products: scraperResult.products,
           local_businesses: scraperResult.localBusinesses,
+        }
+
+        // Check organic rankings for fan_out_queries
+        const fanOutQueries = scraperResult.fanOutQueries ?? []
+        if (fanOutQueries.length > 0) {
+          const checkPromises = fanOutQueries.map(async (query) => {
+            try {
+              await dataForSEORateLimiter.acquire()
+              const serpResult = await executeWithRetry(() => checkSERPRanking({
+                keyword: query,
+                depth: 10,
+                locationCode: scraperResult.locationCode,
+                languageCode: scraperResult.languageCode,
+              }))
+              
+              let matchedItem: any = null
+              if (serpResult.items) {
+                for (const item of serpResult.items) {
+                  if (!item.domain) continue
+                  const matchedBrand = prompt.brands.find((b) => {
+                    const brandDomain = b.domain.toLowerCase().replace('www.', '').trim()
+                    const itemDomain = item.domain!.toLowerCase().replace('www.', '').trim()
+                    return itemDomain === brandDomain || itemDomain.endsWith('.' + brandDomain) || itemDomain.includes(brandDomain)
+                  })
+                  if (matchedBrand) {
+                    matchedItem = item
+                    break
+                  }
+                }
+              }
+              
+              return {
+                run_id: runId!,
+                query,
+                rank_group: matchedItem ? (matchedItem.rank_group ?? null) : null,
+                rank_absolute: matchedItem ? (matchedItem.rank_absolute ?? null) : null,
+                ranked_url: matchedItem ? (matchedItem.url ?? null) : null,
+              }
+            } catch (err) {
+              console.error(`Failed to check SERP rank for fan-out query "${query}":`, err)
+              return {
+                run_id: runId!,
+                query,
+                rank_group: null,
+                rank_absolute: null,
+                ranked_url: null,
+              }
+            }
+          })
+          fanOutRows = await Promise.all(checkPromises)
         }
       } else {
         const platformToUse = platform === 'chatgpt' ? 'chat_gpt' : platform
@@ -189,11 +242,14 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
         }
       })
 
-      // Batch insert mentions and citations, then update run status
+      // Batch insert mentions, citations, and query fanouts, then update run status
       await Promise.all([
         mentionRows.length > 0 ? supabase.from('mentions').insert(mentionRows) : Promise.resolve(),
         enrichedCitations.length > 0
           ? supabase.from('citations').insert(enrichedCitations)
+          : Promise.resolve(),
+        fanOutRows.length > 0
+          ? supabase.from('query_fanouts').insert(fanOutRows)
           : Promise.resolve(),
         supabase
           .from('runs')

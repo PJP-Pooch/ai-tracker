@@ -213,6 +213,7 @@ export type Database = {
           is_active: boolean
           is_branded: boolean
           intent: 'informational' | 'commercial' | 'transactional'
+          category: string | null
           created_at: string
         }
         Insert: {
@@ -224,6 +225,7 @@ export type Database = {
           is_active?: boolean
           is_branded?: boolean
           intent?: 'informational' | 'commercial' | 'transactional'
+          category?: string | null
           created_at?: string
         }
         Update: {
@@ -235,6 +237,7 @@ export type Database = {
           is_active?: boolean
           is_branded?: boolean
           intent?: 'informational' | 'commercial' | 'transactional'
+          category?: string | null
           created_at?: string
         }
         Relationships: [
@@ -408,6 +411,7 @@ export type Database = {
           sentiment_score: number | null
           total_score: number | null
           prompt_count: number | null
+          category: string | null
           created_at: string
         }
         Insert: {
@@ -422,6 +426,7 @@ export type Database = {
           sentiment_score?: number | null
           total_score?: number | null
           prompt_count?: number | null
+          category?: string | null
           created_at?: string
         }
         Update: {
@@ -436,6 +441,7 @@ export type Database = {
           sentiment_score?: number | null
           total_score?: number | null
           prompt_count?: number | null
+          category?: string | null
           created_at?: string
         }
         Relationships: [
@@ -444,6 +450,44 @@ export type Database = {
             columns: ['project_id']
             isOneToOne: false
             referencedRelation: 'projects'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      query_fanouts: {
+        Row: {
+          id: string
+          run_id: string
+          query: string
+          rank_group: number | null
+          rank_absolute: number | null
+          ranked_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          run_id: string
+          query: string
+          rank_group?: number | null
+          rank_absolute?: number | null
+          ranked_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          run_id?: string
+          query?: string
+          rank_group?: number | null
+          rank_absolute?: number | null
+          ranked_url?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'query_fanouts_run_id_fkey'
+            columns: ['run_id']
+            isOneToOne: false
+            referencedRelation: 'runs'
             referencedColumns: ['id']
           }
         ]

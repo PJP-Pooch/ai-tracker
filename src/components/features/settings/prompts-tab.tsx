@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createPrompt, deletePrompt, bulkCreatePrompts } from '@/actions/prompts'
+import { createPrompt, deletePrompt, bulkCreatePrompts, updatePrompt } from '@/actions/prompts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Trash2, Upload } from 'lucide-react'
+import { Trash2, Upload, Edit3 } from 'lucide-react'
 import { TemplateBuilder } from '@/components/features/prompts/template-builder'
 import type { Database } from '@/lib/supabase/types'
 
@@ -28,6 +28,118 @@ const intentColors: Record<string, string> = {
   transactional: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50',
 }
 
+function EditPromptDialog({ prompt, categories, projectId }: { prompt: Prompt; categories: string[]; projectId: string }) {
+  const [open, setOpen] = useState(false)
+  const [priority, setPriority] = useState(prompt.priority)
+  const [intent, setIntent] = useState(prompt.intent ?? 'informational')
+  const [category, setCategory] = useState(prompt.category ?? '')
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleUpdate(formData: FormData) {
+    formData.set('priority', priority)
+    formData.set('intent', intent)
+    formData.set('category', category)
+    formData.set('is_active', formData.get('is_active') === 'on' ? 'true' : 'false')
+
+    const result = await updatePrompt(prompt.id, projectId, formData)
+    if (result?.error) {
+      setError(result.error)
+    } else {
+      setError(null)
+      setOpen(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground px-2">
+          <Edit3 className="w-4 h-4" />
+        </Button>
+      } />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Prompt</DialogTitle>
+        </DialogHeader>
+        <form action={handleUpdate} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Prompt Text</Label>
+            <Input name="prompt_text" defaultValue={prompt.prompt_text} required />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Input
+              name="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="e.g. dog food, brand"
+              list={`edit-categories-${prompt.id}`}
+            />
+            <datalist id={`edit-categories-${prompt.id}`}>
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select value={priority} onValueChange={(v) => { if (v) setPriority(v as any) }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Priority">
+                    {priority === 'high' ? 'High' : priority === 'medium' ? 'Medium' : 'Low'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Intent</Label>
+              <Select value={intent} onValueChange={(v) => { if (v) setIntent(v as any) }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Intent">
+                    {intent === 'informational' ? 'Informational' : intent === 'commercial' ? 'Commercial' : 'Transactional'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="informational">Informational</SelectItem>
+                  <SelectItem value="commercial">Commercial</SelectItem>
+                  <SelectItem value="transactional">Transactional</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Search Volume</Label>
+            <Input name="volume" type="number" defaultValue={prompt.volume ?? 0} />
+          </div>
+
+          <div className="flex items-center gap-2.5 py-1">
+            <input
+              type="checkbox"
+              name="is_active"
+              id={`edit-active-${prompt.id}`}
+              defaultChecked={prompt.is_active}
+              className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
+            />
+            <Label htmlFor={`edit-active-${prompt.id}`} className="cursor-pointer text-sm font-medium">Active / Tracked</Label>
+          </div>
+
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <Button type="submit" className="w-full gradient-indigo mt-2">Save Changes</Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function PromptsTab({
   prompts,
   projectId,
@@ -39,23 +151,36 @@ export function PromptsTab({
 }) {
   const [error, setError] = useState<string | null>(null)
   const [bulkText, setBulkText] = useState('')
+  const [bulkCategory, setBulkCategory] = useState('')
   const [bulkOpen, setBulkOpen] = useState(false)
   const [priority, setPriority] = useState('medium')
   const [intent, setIntent] = useState('informational')
+
+  const categories = Array.from(
+    new Set(prompts.map((p) => p.category).filter(Boolean))
+  ) as string[]
 
   async function handleCreate(formData: FormData) {
     formData.set('priority', priority)
     formData.set('intent', intent)
     const result = await createPrompt(projectId, formData)
-    if (result?.error) setError(result.error)
-  }
-
-  async function handleBulk() {
-    const result = await bulkCreatePrompts(projectId, bulkText)
     if (result?.error) {
       setError(result.error)
     } else {
+      setError(null)
+      const form = document.querySelector('form')
+      if (form) form.reset()
+    }
+  }
+
+  async function handleBulk() {
+    const result = await bulkCreatePrompts(projectId, bulkText, bulkCategory)
+    if (result?.error) {
+      setError(result.error)
+    } else {
+      setError(null)
       setBulkText('')
+      setBulkCategory('')
       setBulkOpen(false)
     }
   }
@@ -74,6 +199,11 @@ export function PromptsTab({
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-sm truncate font-medium text-foreground/90">{prompt.prompt_text}</span>
                 <div className="flex gap-1.5 shrink-0 ml-2">
+                  {prompt.category && (
+                    <Badge variant="secondary" className="text-[10px] font-semibold bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900/50">
+                      {prompt.category}
+                    </Badge>
+                  )}
                   <Badge className={priorityColors[prompt.priority]} variant="outline">
                     {prompt.priority}
                   </Badge>
@@ -91,14 +221,17 @@ export function PromptsTab({
                 </div>
               </div>
               {isAdmin && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(prompt.id)}
-                  className="text-red-500 hover:text-red-700 shrink-0"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <EditPromptDialog prompt={prompt} categories={categories} projectId={projectId} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(prompt.id)}
+                    className="text-red-500 hover:text-red-700 px-2 shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -127,6 +260,20 @@ export function PromptsTab({
                   </DialogHeader>
                   <div className="space-y-4">
                     <p className="text-sm text-neutral-500">Paste one prompt per line.</p>
+                    <div className="space-y-1.5">
+                      <Label>Assign to Category (Optional)</Label>
+                      <Input
+                        placeholder="e.g. dog food, dog treats"
+                        value={bulkCategory}
+                        onChange={(e) => setBulkCategory(e.target.value)}
+                        list="bulk-categories"
+                      />
+                      <datalist id="bulk-categories">
+                        {categories.map((c) => (
+                          <option key={c} value={c} />
+                        ))}
+                      </datalist>
+                    </div>
                     <Textarea
                       rows={10}
                       placeholder="best dog food UK&#10;best dog food for sensitive stomachs&#10;gut health dog food"
@@ -144,6 +291,19 @@ export function PromptsTab({
               <div className="space-y-2">
                 <Label>Prompt</Label>
                 <Input name="prompt_text" placeholder="best dog food UK" required />
+              </div>
+              <div className="space-y-2">
+                <Label>Category (Optional)</Label>
+                <Input
+                  name="category"
+                  placeholder="e.g. dog food, brand"
+                  list="add-categories"
+                />
+                <datalist id="add-categories">
+                  {categories.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

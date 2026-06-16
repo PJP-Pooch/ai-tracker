@@ -7,7 +7,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 
 export async function createProject(formData: FormData) {
-  const { user } = await requireRole('admin')
+  const { user } = await requireRole('analyst')
   const supabase = await createClient()
 
   const name = (formData.get('name') as string).trim()
@@ -25,7 +25,7 @@ export async function createProject(formData: FormData) {
 }
 
 export async function updateProject(id: string, formData: FormData) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const db = isAdmin ? createAdminClient() : await createClient()
 
   const name = (formData.get('name') as string).trim()
@@ -54,7 +54,7 @@ export async function updateProject(id: string, formData: FormData) {
 }
 
 export async function deleteProject(id: string) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const db = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await db.from('projects').delete().eq('id', id)

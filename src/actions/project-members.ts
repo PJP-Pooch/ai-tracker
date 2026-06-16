@@ -4,17 +4,28 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
-async function requireProjectAdmin() {
+async function requireProjectAdmin(projectId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
   const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean)
-  if (!adminEmails.includes(user.email ?? '')) throw new Error('Unauthorized')
+  const isGlobalAdmin = adminEmails.includes(user.email ?? '')
+  if (isGlobalAdmin) return user
+
+  const { data: project } = await supabase
+    .from('projects')
+    .select('owner_id')
+    .eq('id', projectId)
+    .single()
+
+  if (project?.owner_id !== user.id) {
+    throw new Error('Unauthorized')
+  }
   return user
 }
 
 export async function addProjectMember(projectId: string, formData: FormData) {
-  await requireProjectAdmin()
+  await requireProjectAdmin(projectId)
 
   const email = (formData.get('email') as string)?.trim().toLowerCase()
   if (!email) return { error: 'Email is required' }
@@ -61,7 +72,7 @@ export async function addProjectMember(projectId: string, formData: FormData) {
 }
 
 export async function removeProjectMember(projectId: string, userId: string) {
-  await requireProjectAdmin()
+  await requireProjectAdmin(projectId)
 
   const admin = createAdminClient()
   const { error } = await admin

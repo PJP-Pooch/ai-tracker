@@ -6,7 +6,7 @@ import { requireRole } from '@/lib/auth/require-role'
 import { revalidatePath } from 'next/cache'
 
 export async function createBrand(projectId: string, formData: FormData) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('brands').insert({
@@ -23,7 +23,7 @@ export async function createBrand(projectId: string, formData: FormData) {
 }
 
 export async function updateBrand(id: string, projectId: string, formData: FormData) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('brands').update({
@@ -38,7 +38,7 @@ export async function updateBrand(id: string, projectId: string, formData: FormD
 }
 
 export async function deleteBrand(id: string, projectId: string) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('brands').delete().eq('id', id)

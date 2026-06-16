@@ -44,15 +44,28 @@ export async function getTopCitedDomains(
 
   if (error || !data) return []
 
-  return (data as CitedDomain[]).map((row) => ({
-    ...row,
-    ownerTag: row.brand_name ? 'own' : row.competitor_name ? 'competitor' : 'third-party',
-    ownerLabel: row.brand_name
-      ? 'Your Brand'
-      : row.competitor_name
-        ? `Competitor: ${row.competitor_name}`
-        : 'Third Party',
-  }))
+  const isGoogleOrSearchEngine = (domain: string) => {
+    return (
+      domain === 'vertexaisearch.cloud.google.com' ||
+      domain === 'google.com' ||
+      domain.includes('.google.') ||
+      domain.startsWith('google.') ||
+      domain === 'bing.com' ||
+      domain === 'duckduckgo.com'
+    )
+  }
+
+  return (data as CitedDomain[])
+    .filter((row) => !isGoogleOrSearchEngine(row.domain))
+    .map((row) => ({
+      ...row,
+      ownerTag: row.brand_name ? 'own' : row.competitor_name ? 'competitor' : 'third-party',
+      ownerLabel: row.brand_name
+        ? 'Your Brand'
+        : row.competitor_name
+          ? `Competitor: ${row.competitor_name}`
+          : 'Third Party',
+    }))
 }
 
 export async function getTopCitedUrls(
@@ -70,7 +83,18 @@ export async function getTopCitedUrls(
 
   if (error || !data) return []
 
-  return data as CitedUrl[]
+  const isGoogleOrSearchEngine = (domain: string) => {
+    return (
+      domain === 'vertexaisearch.cloud.google.com' ||
+      domain === 'google.com' ||
+      domain.includes('.google.') ||
+      domain.startsWith('google.') ||
+      domain === 'bing.com' ||
+      domain === 'duckduckgo.com'
+    )
+  }
+
+  return (data as CitedUrl[]).filter((row) => !isGoogleOrSearchEngine(row.domain))
 }
 
 export async function getCitationOverlap(projectId: string): Promise<CitationOverlapEntry[]> {

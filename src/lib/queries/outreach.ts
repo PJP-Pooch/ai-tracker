@@ -113,7 +113,16 @@ export async function getOutreachOpportunities(
           cDomain === comp.domain || cDomain.includes(comp.domain)
         )
 
-        if (isOwnDomain || isCompetitorDomain) continue
+        // Skip Google search grounding redirect domains and search engine domains
+        const isGoogleOrSearchEngine = 
+          cDomain === 'vertexaisearch.cloud.google.com' ||
+          cDomain === 'google.com' ||
+          cDomain.includes('.google.') ||
+          cDomain.startsWith('google.') ||
+          cDomain === 'bing.com' ||
+          cDomain === 'duckduckgo.com'
+
+        if (isOwnDomain || isCompetitorDomain || isGoogleOrSearchEngine) continue
 
         if (!outreachOpportunities[cDomain]) {
           outreachOpportunities[cDomain] = {
@@ -129,11 +138,30 @@ export async function getOutreachOpportunities(
         mentionedCompetitors.forEach((comp) => outreachOpportunities[cDomain].competitorsCited.add(comp.name))
         outreachOpportunities[cDomain].promptsCount.add(promptId)
 
-        // Add prompt if it doesn't already exist in the list
-        const promptExists = outreachOpportunities[cDomain].prompts.some(
-          (p) => p.promptText === promptText && p.url === citation.url
+        // Deduplicate prompts. For vertexaisearch redirect URLs, compare only by prompt text.
+        // If a real URL is found later, upgrade the redirect URL to the real URL.
+        const existingPromptIdx = outreachOpportunities[cDomain].prompts.findIndex(
+          (p) => p.promptText === promptText
         )
-        if (!promptExists) {
+
+        const isNewVertex = citation.url.includes('vertexaisearch.cloud.google.com')
+
+        if (existingPromptIdx >= 0) {
+          const existingPrompt = outreachOpportunities[cDomain].prompts[existingPromptIdx]
+          const isExistingVertex = existingPrompt.url.includes('vertexaisearch.cloud.google.com')
+
+          // If the existing URL is a vertex redirect and the new URL is a real one, upgrade it
+          if (isExistingVertex && !isNewVertex) {
+            outreachOpportunities[cDomain].prompts[existingPromptIdx].url = citation.url
+          }
+          // If both are real URLs and they are different, keep both as separate targets
+          else if (!isExistingVertex && !isNewVertex && existingPrompt.url !== citation.url) {
+            outreachOpportunities[cDomain].prompts.push({
+              promptText,
+              url: citation.url,
+            })
+          }
+        } else {
           outreachOpportunities[cDomain].prompts.push({
             promptText,
             url: citation.url,

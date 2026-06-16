@@ -141,6 +141,9 @@ export interface ParsedLLMScraperResponse {
   ads: LLMScraperItemAd[]
   products: LLMScraperItemProduct[]
   localBusinesses: LLMScraperItemLocalBusiness[]
+  fanOutQueries: string[]
+  locationCode?: number
+  languageCode?: string
   rawResponse: any
 }
 
@@ -207,6 +210,9 @@ export async function getLLMScraper(
     ads,
     products,
     localBusinesses,
+    fanOutQueries: result.fan_out_queries ?? [],
+    locationCode: result.location_code,
+    languageCode: result.language_code,
     rawResponse: response,
   }
 }

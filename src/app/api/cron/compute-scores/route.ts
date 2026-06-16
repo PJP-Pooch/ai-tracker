@@ -36,35 +36,49 @@ export async function GET(req: NextRequest) {
     const project = (brand as unknown as { projects: { platforms: string[] } }).projects
     const platforms = project?.platforms ?? ['chatgpt', 'gemini']
 
+    // Fetch unique active categories for this project
+    const { data: prompts } = await supabase
+      .from('prompts')
+      .select('category')
+      .eq('project_id', brand.project_id)
+      .eq('is_active', true)
+    
+    const categories = Array.from(new Set((prompts ?? []).map(p => p.category).filter(Boolean))) as (string | null)[]
+    const categoriesToCompute = [null, ...categories] // null represents overall project score
+
     for (const platform of platforms) {
-      try {
-        const { data: score, error: rpcError } = await supabase.rpc(
-          'compute_visibility_score',
-          {
-            p_project_id: brand.project_id,
-            p_brand_id: brand.id,
-            p_date: today,
-            p_platform: platform,
-          }
-        )
+      for (const category of categoriesToCompute) {
+        try {
+          const { data: score, error: rpcError } = await supabase.rpc(
+            'compute_visibility_score',
+            {
+              p_project_id: brand.project_id,
+              p_brand_id: brand.id,
+              p_date: today,
+              p_platform: platform,
+              p_category: category,
+            }
+          )
 
-        if (rpcError) throw rpcError
+          if (rpcError) throw rpcError
 
-        await supabase.from('visibility_scores').upsert(
-          {
-            project_id: brand.project_id,
-            brand_id: brand.id,
-            date: today,
-            platform,
-            total_score: score,
-          },
-          { onConflict: 'project_id,brand_id,date,platform' }
-        )
+          await supabase.from('visibility_scores').upsert(
+            {
+              project_id: brand.project_id,
+              brand_id: brand.id,
+              date: today,
+              platform,
+              category,
+              total_score: score,
+            },
+            { onConflict: 'project_id,brand_id,date,platform,category' }
+          )
 
-        computed++
-      } catch (err) {
-        console.error(`Score computation failed for brand ${brand.id} / ${platform}:`, err)
-        failures++
+          computed++
+        } catch (err) {
+          console.error(`Score computation failed for brand ${brand.id} / ${platform} / category ${category ?? 'overall'}:`, err)
+          failures++
+        }
       }
     }
   }

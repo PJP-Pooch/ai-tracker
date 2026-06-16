@@ -31,7 +31,7 @@ export interface PlatformBreakdownRow {
 
 export async function getExecutiveKPIs(
   projectId: string,
-  options: { queryType?: 'all' | 'branded' | 'non_branded' } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
 ): Promise<ExecutiveKPIs> {
   const supabase = await createDbClient()
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
@@ -45,7 +45,7 @@ export async function getExecutiveKPIs(
 
   const brandId = primaryBrand?.id ?? null
 
-  // Fetch prompts for the project, optionally filtered by branded/non-branded
+  // Fetch prompts for the project, optionally filtered by branded/non-branded and category
   let promptsQuery = supabase
     .from('prompts')
     .select('id')
@@ -53,6 +53,13 @@ export async function getExecutiveKPIs(
     .eq('is_active', true)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
+  if (options.category) {
+    if (options.category === 'uncategorized') {
+      promptsQuery = promptsQuery.is('category', null)
+    } else {
+      promptsQuery = promptsQuery.eq('category', options.category)
+    }
+  }
   const { data: prompts } = await promptsQuery
 
   const promptIds = (prompts ?? []).map((p) => p.id)
@@ -201,7 +208,7 @@ export async function getExecutiveKPIs(
 export async function getVisibilityTrend(
   projectId: string,
   days = 30,
-  options: { queryType?: 'all' | 'branded' | 'non_branded' } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
 ): Promise<VisibilityTrendPoint[]> {
   const supabase = await createDbClient()
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
@@ -224,6 +231,13 @@ export async function getVisibilityTrend(
   let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
+  if (options.category) {
+    if (options.category === 'uncategorized') {
+      promptsQuery = promptsQuery.is('category', null)
+    } else {
+      promptsQuery = promptsQuery.eq('category', options.category)
+    }
+  }
   const { data: prompts } = await promptsQuery
 
   const promptIds = (prompts ?? []).map((p) => p.id)
@@ -285,7 +299,7 @@ export async function getVisibilityTrend(
 
 export async function getPlatformBreakdown(
   projectId: string,
-  options: { queryType?: 'all' | 'branded' | 'non_branded' } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
 ): Promise<PlatformBreakdownRow[]> {
   const supabase = await createDbClient()
 
@@ -301,6 +315,13 @@ export async function getPlatformBreakdown(
   let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
+  if (options.category) {
+    if (options.category === 'uncategorized') {
+      promptsQuery = promptsQuery.is('category', null)
+    } else {
+      promptsQuery = promptsQuery.eq('category', options.category)
+    }
+  }
   const { data: prompts } = await promptsQuery
 
   const promptIds = (prompts ?? []).map((p) => p.id)
@@ -358,7 +379,7 @@ export interface IntentVisibility {
 
 export async function getIntentVisibility(
   projectId: string,
-  options: { queryType?: 'all' | 'branded' | 'non_branded' } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
 ): Promise<IntentVisibility[]> {
   const supabase = await createDbClient()
 
@@ -378,6 +399,13 @@ export async function getIntentVisibility(
     .eq('is_active', true)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
+  if (options.category) {
+    if (options.category === 'uncategorized') {
+      promptsQuery = promptsQuery.is('category', null)
+    } else {
+      promptsQuery = promptsQuery.eq('category', options.category)
+    }
+  }
   const { data: prompts } = await promptsQuery
 
   if (!prompts || prompts.length === 0) return []

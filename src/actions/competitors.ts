@@ -6,7 +6,7 @@ import { requireRole } from '@/lib/auth/require-role'
 import { revalidatePath } from 'next/cache'
 
 export async function createCompetitor(projectId: string, formData: FormData) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('competitors').insert({
@@ -22,7 +22,7 @@ export async function createCompetitor(projectId: string, formData: FormData) {
 }
 
 export async function updateCompetitor(id: string, projectId: string, formData: FormData) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('competitors').update({
@@ -37,7 +37,7 @@ export async function updateCompetitor(id: string, projectId: string, formData: 
 }
 
 export async function deleteCompetitor(id: string, projectId: string) {
-  const { isAdmin } = await requireRole('admin')
+  const { user, isAdmin } = await requireRole('analyst')
   const supabase = isAdmin ? createAdminClient() : await createClient()
 
   const { error } = await supabase.from('competitors').delete().eq('id', id)

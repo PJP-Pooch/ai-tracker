@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTransition } from 'react'
-import { BarChart3, Brain, FileSearch, Globe, LayoutDashboard, LogOut, Search, Settings, ShieldAlert, ShoppingBag, Users } from 'lucide-react'
+import { BarChart3, Brain, FileSearch, GitFork, Globe, LayoutDashboard, LogOut, Search, Settings, ShieldAlert, ShoppingBag, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { signOut } from '@/app/(auth)/login/actions'
@@ -17,6 +17,7 @@ interface SidebarProps {
 const navItems = (projectId: string) => [
   { href: `/${projectId}/overview`,    label: 'Overview',        icon: LayoutDashboard },
   { href: `/${projectId}/prompts`,     label: 'Prompt Tracking', icon: Brain },
+  { href: `/${projectId}/query-fanouts`, label: 'Query Fanouts',  icon: GitFork },
   { href: `/${projectId}/research`,    label: 'Prompt Research', icon: Search },
   { href: `/${projectId}/products`,    label: 'Scraped Products',icon: ShoppingBag },
   { href: `/${projectId}/alignment`,   label: 'Alignment Issues', icon: ShieldAlert },
