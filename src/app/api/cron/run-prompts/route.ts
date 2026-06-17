@@ -22,6 +22,8 @@ export async function GET(req: NextRequest) {
       projects!inner (
         platforms,
         schedule_frequency,
+        target_location_code,
+        target_language_code,
         brands ( id, name, domain ),
         competitors ( id, domain )
       )
@@ -69,31 +71,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: 'No prompts scheduled for this slot', total: 0 })
   }
 
-  // Run sequentially to avoid concurrent rate limits on 3rd party APIs
-  const results: PromiseSettledResult<any>[] = []
-  for (const prompt of promptsToRun) {
-    const project = (prompt as unknown as {
-      projects: {
-        platforms: string[]
-        brands: { id: string; name: string; domain: string }[]
-        competitors: { id: string; domain: string }[]
-      }
-    }).projects
+  // Run in parallel to avoid serverless function timeouts.
+  // The DataForSEO rate limiter will handle upstream throttling.
+  const results = await Promise.allSettled(
+    promptsToRun.map(async (prompt) => {
+      const project = (prompt as unknown as {
+        projects: {
+          platforms: string[]
+          target_location_code: number | null
+          target_language_code: string | null
+          brands: { id: string; name: string; domain: string }[]
+          competitors: { id: string; domain: string }[]
+        }
+      }).projects
 
-    try {
-      const res = await runPromptPipeline({
+      return runPromptPipeline({
         id: prompt.id,
         prompt_text: prompt.prompt_text,
         project_id: prompt.project_id,
         brands: project?.brands ?? [],
         competitors: project?.competitors ?? [],
         platforms: project?.platforms ?? ['chatgpt', 'gemini'],
+        target_location_code: project?.target_location_code,
+        target_language_code: project?.target_language_code,
       })
-      results.push({ status: 'fulfilled', value: res })
-    } catch (err) {
-      results.push({ status: 'rejected', reason: err })
-    }
-  }
+    })
+  )
 
   const succeeded = results.filter((r) => r.status === 'fulfilled').length
   const failed = results.filter((r) => r.status === 'rejected').length

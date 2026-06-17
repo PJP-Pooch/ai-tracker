@@ -28,19 +28,26 @@ export async function getCompetitorVisibility(
   projectId: string,
   days = 30,
   platform?: string,
-  options: { queryType?: 'all' | 'branded' | 'non_branded' } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
 ): Promise<CompetitorScore[]> {
   const supabase = await createDbClient()
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
   const halfwayPoint = new Date(Date.now() - (days / 2) * 24 * 60 * 60 * 1000).toISOString()
 
-  let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId)
+  let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId).eq('is_critique', false)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
+  if (options.category) {
+    if (options.category === 'uncategorized') {
+      promptsQuery = promptsQuery.is('category', null)
+    } else {
+      promptsQuery = promptsQuery.eq('category', options.category)
+    }
+  }
 
   const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
     supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
-    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
+    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId).order('name', { ascending: true }),
     promptsQuery,
   ])
 
@@ -145,17 +152,24 @@ function toZeroScore(id: string, name: string, domain: string, isOwn: boolean): 
 
 export async function getShareOfVoice(
   projectId: string,
-  options: { queryType?: 'all' | 'branded' | 'non_branded' } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
 ): Promise<Array<{ name: string; share: number; isOwn: boolean }>> {
   const supabase = await createDbClient()
 
-  let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId)
+  let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId).eq('is_critique', false)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
+  if (options.category) {
+    if (options.category === 'uncategorized') {
+      promptsQuery = promptsQuery.is('category', null)
+    } else {
+      promptsQuery = promptsQuery.eq('category', options.category)
+    }
+  }
 
   const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
     supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
-    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
+    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId).order('name', { ascending: true }),
     promptsQuery,
   ])
 
@@ -214,6 +228,7 @@ export interface GapMatrixRow {
   promptId: string
   promptText: string
   intent: 'informational' | 'commercial' | 'transactional'
+  category: string | null
   chatgpt: {
     own: CompetitorGapStatus
     competitors: CompetitorGapStatus[]
@@ -226,21 +241,29 @@ export interface GapMatrixRow {
 
 export async function getCompetitorGapMatrix(
   projectId: string,
-  options: { queryType?: 'all' | 'branded' | 'non_branded' } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
 ): Promise<GapMatrixRow[]> {
   const supabase = await createDbClient()
 
   let promptsQuery = supabase
     .from('prompts')
-    .select('id, prompt_text, intent')
+    .select('id, prompt_text, intent, category')
     .eq('project_id', projectId)
     .eq('is_active', true)
+    .eq('is_critique', false)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
+  if (options.category) {
+    if (options.category === 'uncategorized') {
+      promptsQuery = promptsQuery.is('category', null)
+    } else {
+      promptsQuery = promptsQuery.eq('category', options.category)
+    }
+  }
 
   const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
     supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
-    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
+    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId).order('name', { ascending: true }),
     promptsQuery,
   ])
 
@@ -322,6 +345,7 @@ export async function getCompetitorGapMatrix(
       promptId: p.id,
       promptText: p.prompt_text,
       intent: (p.intent ?? 'informational') as 'informational' | 'commercial' | 'transactional',
+      category: p.category,
       chatgpt: getStatus(chatgptRun),
       gemini: getStatus(geminiRun),
     }

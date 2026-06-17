@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
       project_id,
       projects!inner (
         platforms,
+        target_location_code,
+        target_language_code,
         brands ( id, name, domain ),
         competitors ( id, domain )
       )
@@ -41,6 +43,8 @@ export async function POST(req: NextRequest) {
   const project = (prompt as unknown as {
     projects: {
       platforms: string[]
+      target_location_code: number | null
+      target_language_code: string | null
       brands: { id: string; name: string; domain: string }[]
       competitors: { id: string; domain: string }[]
     }
@@ -53,6 +57,8 @@ export async function POST(req: NextRequest) {
     brands: project?.brands ?? [],
     competitors: project?.competitors ?? [],
     platforms: project?.platforms ?? ['chatgpt', 'gemini'],
+    target_location_code: project?.target_location_code,
+    target_language_code: project?.target_language_code,
   })
 
   return NextResponse.json({ success: true })

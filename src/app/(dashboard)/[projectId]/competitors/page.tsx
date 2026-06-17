@@ -4,6 +4,8 @@ import { VisibilityTrendChart } from '@/components/features/competitors/visibili
 import { ShareOfVoiceChart } from '@/components/features/competitors/share-of-voice-chart'
 import { GapMatrixTable } from '@/components/features/competitors/gap-matrix-table'
 import { QueryTypeFilter } from '@/components/features/shared/query-type-filter'
+import { CategoryFilter } from '@/components/features/shared/category-filter'
+import { createDbClient } from '@/lib/supabase/db'
 
 export default async function CompetitorsPage({
   params,
@@ -15,7 +17,17 @@ export default async function CompetitorsPage({
   const { projectId } = await params
   const sp = await searchParams
   const queryType = (sp.queryType as 'all' | 'branded' | 'non_branded') || 'all'
-  const opts = { queryType }
+  const category = sp.category || undefined
+  const opts = { queryType, category }
+
+  const supabase = await createDbClient()
+
+  // Fetch unique categories for this project
+  const { data: prompts } = await supabase
+    .from('prompts')
+    .select('category')
+    .eq('project_id', projectId)
+  const categories = Array.from(new Set((prompts ?? []).map((p) => p.category).filter(Boolean))) as string[]
 
   const [competitors, shareOfVoice, gapMatrix] = await Promise.all([
     getCompetitorVisibility(projectId, 30, undefined, opts),
@@ -36,7 +48,10 @@ export default async function CompetitorsPage({
             Track visibility across all brands and competitors
           </p>
         </div>
-        <QueryTypeFilter />
+        <div className="flex items-center gap-3 flex-wrap self-start sm:self-auto">
+          <CategoryFilter categories={categories} />
+          <QueryTypeFilter />
+        </div>
       </div>
 
       {queryType !== 'non_branded' && (

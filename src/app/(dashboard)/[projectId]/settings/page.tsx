@@ -13,10 +13,14 @@ import type { ProjectMember } from '@/components/features/settings/members-tab'
 
 export default async function SettingsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { projectId } = await params
+  const resolvedSearchParams = await searchParams
+  const tab = typeof resolvedSearchParams.tab === 'string' ? resolvedSearchParams.tab : undefined
   const supabase = await createClient()
   const db = await createDbClient()
 
@@ -49,21 +53,24 @@ export default async function SettingsPage({
       const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 })
       const memberIds = new Set(memberRows.map(m => m.user_id))
       members = users
-        .filter(u => memberIds.has(u.id))
-        .map(u => ({
-          id: u.id,
-          email: u.email ?? '',
-          added_at: memberRows.find(m => m.user_id === u.id)?.added_at ?? '',
-          pending: !u.last_sign_in_at,
-        }))
+      .filter(u => memberIds.has(u.id))
+      .map(u => ({
+        id: u.id,
+        email: u.email ?? '',
+        added_at: memberRows.find(m => m.user_id === u.id)?.added_at ?? '',
+        pending: !u.last_sign_in_at,
+      }))
     }
   }
+
+  const validTabs = ['project', 'brands', 'competitors', 'prompts', 'intelligence', ...(isAdmin ? ['members'] : [])]
+  const activeTab = tab && validTabs.includes(tab) ? tab : 'project'
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-foreground mb-6">Project Settings</h1>
 
-      <Tabs defaultValue="brands">
+      <Tabs defaultValue={activeTab} key={activeTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="project">Project</TabsTrigger>
           <TabsTrigger value="brands">Brands</TabsTrigger>

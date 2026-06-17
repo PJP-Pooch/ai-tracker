@@ -25,6 +25,8 @@ interface PromptWithRelations {
   brands: BrandRow[]
   competitors: CompetitorRow[]
   platforms?: string[]
+  target_location_code?: number | null
+  target_language_code?: string | null
 }
 
 export interface PipelineResult {
@@ -108,6 +110,8 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
         const scraperResult = await executeWithRetry(() => getLLMScraper({
           keyword: prompt.prompt_text,
           se,
+          locationCode: prompt.target_location_code ?? undefined,
+          languageCode: prompt.target_language_code ?? undefined,
         }))
         responseText = scraperResult.markdown || ''
         costUsd = scraperResult.costUsd
@@ -123,7 +127,10 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
         }
 
         // Check organic rankings for fan_out_queries
-        const fanOutQueries = scraperResult.fanOutQueries ?? []
+        const rawFanOutQueries = scraperResult.fanOutQueries ?? []
+        const fanOutQueries = Array.from(new Set(
+          rawFanOutQueries.flatMap((q) => splitConcatenatedQuery(q, prompt.prompt_text))
+        ))
         if (fanOutQueries.length > 0) {
           const checkPromises = fanOutQueries.map(async (query) => {
             try {
@@ -178,6 +185,8 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
           userPrompt: prompt.prompt_text,
           modelName,
           webSearch: true,
+          locationCode: prompt.target_location_code ?? undefined,
+          languageCode: prompt.target_language_code ?? undefined,
         }))
         responseText = llmResult.content || ''
         costUsd = llmResult.costUsd
@@ -279,4 +288,96 @@ export async function runPromptPipeline(prompt: PromptWithRelations): Promise<Pi
   }
 
   return result
+}
+
+function splitConcatenatedQuery(query: string, mainPromptText: string): string[] {
+  if (!query) return [];
+  
+  query = query.trim().replace(/\s+/g, ' ');
+  const words = query.split(' ');
+  const splitIndices = new Set<number>();
+  
+  const triggers = [
+    'vet',
+    'veterinary',
+    'top',
+    'dry',
+    'wet'
+  ];
+
+  for (let i = 1; i < words.length; i++) {
+    const word = words[i].toLowerCase();
+    const prevWord = words[i - 1];
+    
+    // Rule 1: Split after a 4-digit year/number (e.g. 2024-2029)
+    if (/^20\d{2}$/.test(prevWord)) {
+      splitIndices.add(i);
+      continue;
+    }
+    
+    // Rule 2: Split before a core trigger word
+    if (triggers.includes(word)) {
+      if (i + 1 < words.length) {
+        splitIndices.add(i);
+      }
+    }
+  }
+
+  // Generate sub-queries based on split indices
+  const sortedIndices = Array.from(splitIndices).sort((a, b) => a - b);
+  const rawSubQueries: string[] = [];
+  let lastIndex = 0;
+  
+  for (const index of sortedIndices) {
+    if (index > lastIndex) {
+      rawSubQueries.push(words.slice(lastIndex, index).join(' '));
+      lastIndex = index;
+    }
+  }
+  if (lastIndex < words.length) {
+    rawSubQueries.push(words.slice(lastIndex).join(' '));
+  }
+
+  // Post-processing: clean up and merge too-short segments (like "UK")
+  const subQueries: string[] = [];
+  for (let i = 0; i < rawSubQueries.length; i++) {
+    const q = rawSubQueries[i].trim().replace(/^[,.\-\s]+|[,.\-\s]+$/g, '');
+    if (!q) continue;
+
+    // A query is too short if it has only 1 word, or is just "UK"
+    const qw = q.split(' ');
+    const isTooShort = qw.length <= 1 || (qw.length === 2 && qw[0].toLowerCase() === 'uk' && qw[1].length <= 3);
+
+    if (isTooShort && subQueries.length > 0) {
+      // Merge with previous query
+      subQueries[subQueries.length - 1] = `${subQueries[subQueries.length - 1]} ${q}`;
+    } else if (isTooShort && i + 1 < rawSubQueries.length) {
+      // Merge with next query by prepending it
+      rawSubQueries[i + 1] = `${q} ${rawSubQueries[i + 1]}`;
+    } else {
+      subQueries.push(q);
+    }
+  }
+
+  // Final cleanup of duplicates and trailing "UK"s
+  return subQueries
+    .map(q => {
+      const qw = q.split(' ');
+      
+      // If query ends with "UK" and contains another "UK" earlier, remove the trailing "UK"
+      if (qw.length > 1 && qw[qw.length - 1].toLowerCase() === 'uk') {
+        const hasUkEarlier = qw.slice(0, qw.length - 1).some(w => w.toLowerCase() === 'uk');
+        if (hasUkEarlier) {
+          qw.pop();
+        }
+      }
+      
+      // Also clean up duplicate trailing "UK"s
+      if (qw.length > 2 && qw[qw.length - 1].toLowerCase() === 'uk' && qw[qw.length - 2].toLowerCase() === 'uk') {
+        qw.pop();
+      }
+      
+      return qw.join(' ');
+    })
+    .filter(q => q.length > 0);
 }

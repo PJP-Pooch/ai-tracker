@@ -38,12 +38,20 @@ export async function updateProject(id: string, formData: FormData) {
     return { error: 'At least one platform must be selected' }
   }
 
+  // Market / locale
+  const marketRaw = formData.get('market') as string | null
+  const market = marketRaw ? JSON.parse(marketRaw) as { locationCode: number; languageCode: string } : null
+
   const { error } = await db
     .from('projects')
     .update({
       name,
       schedule_frequency: scheduleFrequency as 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly',
       platforms,
+      ...(market && {
+        target_location_code: market.locationCode,
+        target_language_code: market.languageCode,
+      }),
     })
     .eq('id', id)
 

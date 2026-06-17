@@ -53,7 +53,7 @@ export default async function ProjectLayout({
           lastScanned={lastScanned}
         />
         <main className="flex-1 overflow-y-auto bg-background">
-          <div className="p-6 max-w-7xl mx-auto">
+          <div className="p-6">
             {children}
           </div>
         </main>

@@ -1,5 +1,6 @@
 import { getOutreachOpportunities } from '@/lib/queries/outreach'
 import { OutreachTable } from '@/components/features/outreach/outreach-table'
+import { createDbClient } from '@/lib/supabase/db'
 
 export default async function OutreachPage({
   params,
@@ -8,6 +9,15 @@ export default async function OutreachPage({
 }) {
   const { projectId } = await params
   const outreachData = await getOutreachOpportunities(projectId)
+  
+  const supabase = await createDbClient()
+  const { data: competitors } = await supabase
+    .from('competitors')
+    .select('name')
+    .eq('project_id', projectId)
+    .order('name', { ascending: true })
+
+  const competitorNames = (competitors ?? []).map((c) => c.name)
 
   return (
     <div className="space-y-6">
@@ -18,7 +28,7 @@ export default async function OutreachPage({
         </p>
       </div>
 
-      <OutreachTable data={outreachData} />
+      <OutreachTable data={outreachData} competitorNames={competitorNames} />
     </div>
   )
 }

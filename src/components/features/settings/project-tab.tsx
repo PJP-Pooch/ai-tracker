@@ -11,10 +11,43 @@ import type { Database } from '@/lib/supabase/types'
 
 type Project = Database['public']['Tables']['projects']['Row']
 
+// DataForSEO location codes + language codes per market
+// https://docs.dataforseo.com/v3/serp/google/locations/
+const MARKETS = [
+  // English-speaking
+  { label: '🇺🇸 United States', locationCode: 2840, languageCode: 'en' },
+  { label: '🇬🇧 United Kingdom', locationCode: 2826, languageCode: 'en' },
+  { label: '🇨🇦 Canada', locationCode: 2124, languageCode: 'en' },
+  { label: '🇦🇺 Australia', locationCode: 2036, languageCode: 'en' },
+  // European
+  { label: '🇩🇪 Germany', locationCode: 2276, languageCode: 'de' },
+  { label: '🇫🇷 France', locationCode: 2250, languageCode: 'fr' },
+  { label: '🇳🇱 Netherlands', locationCode: 2528, languageCode: 'nl' },
+  { label: '🇪🇸 Spain', locationCode: 2724, languageCode: 'es' },
+  { label: '🇮🇹 Italy', locationCode: 2380, languageCode: 'it' },
+  { label: '🇸🇪 Sweden', locationCode: 2752, languageCode: 'sv' },
+  { label: '🇩🇰 Denmark', locationCode: 2208, languageCode: 'da' },
+  { label: '🇳🇴 Norway', locationCode: 2578, languageCode: 'no' },
+  { label: '🇫🇮 Finland', locationCode: 2246, languageCode: 'fi' },
+  { label: '🇵🇱 Poland', locationCode: 2616, languageCode: 'pl' },
+  { label: '🇧🇪 Belgium (EN)', locationCode: 2056, languageCode: 'en' },
+  { label: '🇨🇭 Switzerland (EN)', locationCode: 2756, languageCode: 'en' },
+]
+
+function marketKey(locationCode: number, languageCode: string) {
+  return JSON.stringify({ locationCode, languageCode })
+}
+
 export function ProjectTab({ project, isAdmin }: { project: Project; isAdmin: boolean }) {
   const [name, setName] = useState(project.name ?? '')
   const [platforms, setPlatforms] = useState<string[]>(project.platforms ?? ['chatgpt', 'gemini'])
   const [schedule, setSchedule] = useState<string>(project.schedule_frequency ?? 'four_times_daily')
+  const [market, setMarket] = useState<string>(
+    marketKey(
+      project.target_location_code ?? 2840,
+      project.target_language_code ?? 'en'
+    )
+  )
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
@@ -22,6 +55,7 @@ export function ProjectTab({ project, isAdmin }: { project: Project; isAdmin: bo
     setError(null)
     setSuccess(false)
     formData.set('schedule_frequency', schedule)
+    formData.set('market', market)
     formData.delete('platforms')
     platforms.forEach((p) => formData.append('platforms', p))
 
@@ -44,7 +78,7 @@ export function ProjectTab({ project, isAdmin }: { project: Project; isAdmin: bo
       <Card>
         <CardHeader>
           <CardTitle>Project Settings</CardTitle>
-          <CardDescription>Configure name, search schedule frequency, and target LLM platforms.</CardDescription>
+          <CardDescription>Configure name, target market, search schedule, and LLM platforms.</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={handleUpdate} className="space-y-6">
@@ -59,6 +93,26 @@ export function ProjectTab({ project, isAdmin }: { project: Project; isAdmin: bo
                   onChange={(e) => setName(e.target.value)}
                   disabled={!isAdmin}
                 />
+              </div>
+
+              {/* Target Market */}
+              <div className="space-y-2">
+                <Label>Target Market</Label>
+                <Select value={market} onValueChange={(v) => { if (v) setMarket(v) }} disabled={!isAdmin}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select market" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MARKETS.map((m) => (
+                      <SelectItem key={marketKey(m.locationCode, m.languageCode)} value={marketKey(m.locationCode, m.languageCode)}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Sets the location and language for all AI and SERP queries run under this project.
+                </p>
               </div>
 
               {/* Target Platforms */}
@@ -144,7 +198,7 @@ export function ProjectTab({ project, isAdmin }: { project: Project; isAdmin: bo
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="four_times_daily">4x Daily (Every 4 hours from 8 AM UTC)</SelectItem>
-                    <SelectItem value="twice_daily">Twice Daily (8 AM & 8 PM UTC)</SelectItem>
+                    <SelectItem value="twice_daily">Twice Daily (8 AM &amp; 8 PM UTC)</SelectItem>
                     <SelectItem value="daily">Daily (8 AM UTC)</SelectItem>
                     <SelectItem value="weekly">Weekly (Monday 8 AM UTC)</SelectItem>
                     <SelectItem value="paused">Paused (Manual run only)</SelectItem>

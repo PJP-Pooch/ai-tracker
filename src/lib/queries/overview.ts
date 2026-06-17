@@ -29,9 +29,38 @@ export interface PlatformBreakdownRow {
   citationCount: number
 }
 
+function isRunInDateRange(runDateStr: string, dateRange?: string): boolean {
+  if (!dateRange || dateRange === 'all') return true
+
+  const runTime = new Date(runDateStr).getTime()
+  const now = new Date()
+
+  switch (dateRange) {
+    case 'today': {
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+      return runTime >= startOfToday
+    }
+    case 'yesterday': {
+      const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime()
+      const endOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999).getTime()
+      return runTime >= startOfYesterday && runTime <= endOfYesterday
+    }
+    case '7days': {
+      const limit = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).getTime()
+      return runTime >= limit
+    }
+    case '30days': {
+      const limit = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).getTime()
+      return runTime >= limit
+    }
+    default:
+      return true
+  }
+}
+
 export async function getExecutiveKPIs(
   projectId: string,
-  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string; dateRange?: 'today' | 'yesterday' | '7days' | '30days' | 'all' } = {}
 ): Promise<ExecutiveKPIs> {
   const supabase = await createDbClient()
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
@@ -45,12 +74,12 @@ export async function getExecutiveKPIs(
 
   const brandId = primaryBrand?.id ?? null
 
-  // Fetch prompts for the project, optionally filtered by branded/non-branded and category
   let promptsQuery = supabase
     .from('prompts')
     .select('id')
     .eq('project_id', projectId)
     .eq('is_active', true)
+    .eq('is_critique', false)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
   if (options.category) {
@@ -80,11 +109,11 @@ export async function getExecutiveKPIs(
   // Fetch all successful runs for these prompts
   const { data: runs } = await supabase
     .from('runs')
-    .select('id, platform, raw_response')
+    .select('id, platform, raw_response, run_date')
     .in('prompt_id', promptIds)
     .eq('status', 'success')
 
-  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '')
+  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '' && isRunInDateRange(r.run_date, options.dateRange))
   const runIds = validRuns.map((r) => r.id)
 
   if (runIds.length === 0) {
@@ -125,7 +154,8 @@ export async function getExecutiveKPIs(
     supabase
       .from('competitors')
       .select('name, domain')
-      .eq('project_id', projectId),
+      .eq('project_id', projectId)
+      .order('name', { ascending: true }),
   ])
 
   const mentions = allMentions ?? []
@@ -208,10 +238,18 @@ export async function getExecutiveKPIs(
 export async function getVisibilityTrend(
   projectId: string,
   days = 30,
-  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string; dateRange?: 'today' | 'yesterday' | '7days' | '30days' | 'all' } = {}
 ): Promise<VisibilityTrendPoint[]> {
   const supabase = await createDbClient()
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+
+  let queryDays = days
+  if (options.dateRange === 'today') queryDays = 1
+  else if (options.dateRange === 'yesterday') queryDays = 2
+  else if (options.dateRange === '7days') queryDays = 7
+  else if (options.dateRange === '30days') queryDays = 30
+  else if (options.dateRange === 'all') queryDays = 365
+
+  const since = new Date(Date.now() - queryDays * 24 * 60 * 60 * 1000).toISOString()
 
   const [{ data: primaryBrand }, { data: competitors }] = await Promise.all([
     supabase
@@ -223,12 +261,13 @@ export async function getVisibilityTrend(
     supabase
       .from('competitors')
       .select('name, domain')
-      .eq('project_id', projectId),
+      .eq('project_id', projectId)
+      .order('name', { ascending: true }),
   ])
 
   if (!primaryBrand) return []
 
-  let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId)
+  let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId).eq('is_critique', false)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
   if (options.category) {
@@ -252,7 +291,7 @@ export async function getVisibilityTrend(
     .gte('run_date', since)
     .order('run_date', { ascending: true })
 
-  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '')
+  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '' && isRunInDateRange(r.run_date, options.dateRange))
   if (validRuns.length === 0) return []
 
   // Group runs by date, compute % mentioned per day for own brand and competitors
@@ -299,7 +338,7 @@ export async function getVisibilityTrend(
 
 export async function getPlatformBreakdown(
   projectId: string,
-  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string; dateRange?: 'today' | 'yesterday' | '7days' | '30days' | 'all' } = {}
 ): Promise<PlatformBreakdownRow[]> {
   const supabase = await createDbClient()
 
@@ -312,7 +351,7 @@ export async function getPlatformBreakdown(
 
   if (!primaryBrand) return []
 
-  let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId)
+  let promptsQuery = supabase.from('prompts').select('id').eq('project_id', projectId).eq('is_critique', false)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
   if (options.category) {
@@ -329,11 +368,11 @@ export async function getPlatformBreakdown(
 
   const { data: runs } = await supabase
     .from('runs')
-    .select('id, platform, raw_response, mentions(brand_id, mentioned, position), citations(brand_id)')
+    .select('id, platform, raw_response, run_date, mentions(brand_id, mentioned, position), citations(brand_id)')
     .in('prompt_id', promptIds)
     .eq('status', 'success')
 
-  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '')
+  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '' && isRunInDateRange(r.run_date, options.dateRange))
   if (validRuns.length === 0) return []
 
   const platforms = ['chatgpt', 'gemini']
@@ -379,7 +418,7 @@ export interface IntentVisibility {
 
 export async function getIntentVisibility(
   projectId: string,
-  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string } = {}
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string; dateRange?: 'today' | 'yesterday' | '7days' | '30days' | 'all' } = {}
 ): Promise<IntentVisibility[]> {
   const supabase = await createDbClient()
 
@@ -397,6 +436,7 @@ export async function getIntentVisibility(
     .select('id, intent')
     .eq('project_id', projectId)
     .eq('is_active', true)
+    .eq('is_critique', false)
   if (options.queryType === 'branded') promptsQuery = promptsQuery.eq('is_branded', true)
   if (options.queryType === 'non_branded') promptsQuery = promptsQuery.eq('is_branded', false)
   if (options.category) {
@@ -414,11 +454,11 @@ export async function getIntentVisibility(
 
   const { data: runs } = await supabase
     .from('runs')
-    .select('id, prompt_id, raw_response, mentions(brand_id, mentioned)')
+    .select('id, prompt_id, raw_response, run_date, mentions(brand_id, mentioned)')
     .in('prompt_id', promptIds)
     .eq('status', 'success')
 
-  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '')
+  const validRuns = (runs ?? []).filter((r) => r.raw_response && r.raw_response.trim() !== '' && isRunInDateRange(r.run_date, options.dateRange))
 
   if (validRuns.length === 0) {
     const intents: Array<'informational' | 'commercial' | 'transactional'> = ['informational', 'commercial', 'transactional']
@@ -466,4 +506,127 @@ export async function getIntentVisibility(
       promptCount: prompts.filter((p) => (p.intent ?? 'informational') === intent).length,
     }
   })
+}
+
+export interface CategoryPerformanceRow {
+  category: string
+  promptCount: number
+  ownScore: number
+  competitors: Array<{
+    name: string
+    score: number
+  }>
+}
+
+export async function getCategoryPerformance(
+  projectId: string,
+  options: { queryType?: 'all' | 'branded' | 'non_branded'; category?: string; dateRange?: 'today' | 'yesterday' | '7days' | '30days' | 'all' } = {}
+): Promise<CategoryPerformanceRow[]> {
+  const supabase = await createDbClient()
+
+  const [{ data: brands }, { data: competitors }, { data: prompts }] = await Promise.all([
+    supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
+    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId).order('name', { ascending: true }),
+    supabase.from('prompts').select('id, category, is_branded').eq('project_id', projectId).eq('is_active', true).eq('is_critique', false),
+  ])
+
+  const ownBrand = brands?.find((b) => b.is_primary)
+  if (!ownBrand || !prompts || prompts.length === 0) return []
+
+  const competitorList = competitors ?? []
+  
+  let activePrompts = prompts ?? []
+  if (options.queryType === 'branded') {
+    activePrompts = activePrompts.filter((p) => p.is_branded === true)
+  } else if (options.queryType === 'non_branded') {
+    activePrompts = activePrompts.filter((p) => p.is_branded === false)
+  }
+
+  if (options.category) {
+    const filterCat = options.category.toLowerCase().trim()
+    if (options.category === 'uncategorized') {
+      activePrompts = activePrompts.filter(
+        (p) => !p.category || p.category.trim() === ''
+      )
+    } else {
+      activePrompts = activePrompts.filter(
+        (p) => p.category && p.category.toLowerCase().trim() === filterCat
+      )
+    }
+  }
+
+  if (activePrompts.length === 0) return []
+
+  const promptIds = activePrompts.map((p) => p.id)
+
+  const { data: runs } = await supabase
+    .from('runs')
+    .select('id, prompt_id, raw_response, run_date')
+    .in('prompt_id', promptIds)
+    .eq('status', 'success')
+    .not('raw_response', 'is', null)
+    .neq('raw_response', '')
+
+  const validRuns = (runs ?? []).filter((r) => isRunInDateRange(r.run_date, options.dateRange))
+
+  // Group prompts by category
+  const promptsByCategory = new Map<string, typeof activePrompts>()
+  for (const p of activePrompts) {
+    const cat = p.category && p.category.trim() !== '' ? p.category.trim() : 'Uncategorized'
+    const list = promptsByCategory.get(cat) ?? []
+    list.push(p)
+    promptsByCategory.set(cat, list)
+  }
+
+  // Group runs by prompt_id
+  const runsByPromptId = new Map<string, typeof validRuns>()
+  for (const r of validRuns) {
+    const list = runsByPromptId.get(r.prompt_id) ?? []
+    list.push(r)
+    runsByPromptId.set(r.prompt_id, list)
+  }
+
+  const categoryRows: CategoryPerformanceRow[] = []
+
+  for (const [category, catPrompts] of promptsByCategory.entries()) {
+    const catPromptIds = catPrompts.map((p) => p.id)
+    const catRuns = catPromptIds.flatMap((pid) => runsByPromptId.get(pid) ?? [])
+
+    const totalRuns = catRuns.length
+    if (totalRuns === 0) {
+      categoryRows.push({
+        category,
+        promptCount: catPrompts.length,
+        ownScore: 0,
+        competitors: competitorList.map((c) => ({ name: c.name, score: 0 }))
+      })
+      continue
+    }
+
+    // Own brand mentions in these runs
+    const ownMentioned = catRuns.filter(
+      (r) => r.raw_response && mentionedInResponse(r.raw_response, ownBrand.name, ownBrand.domain)
+    ).length
+    const ownScore = Math.round((ownMentioned / totalRuns) * 100)
+
+    // Competitors visibility
+    const competitorsScores = competitorList.map((c) => {
+      const compMentioned = catRuns.filter(
+        (r) => r.raw_response && mentionedInResponse(r.raw_response, c.name, c.domain)
+      ).length
+      return {
+        name: c.name,
+        score: Math.round((compMentioned / totalRuns) * 100)
+      }
+    })
+
+    categoryRows.push({
+      category,
+      promptCount: catPrompts.length,
+      ownScore,
+      competitors: competitorsScores
+    })
+  }
+
+  return categoryRows.sort((a, b) => a.category.localeCompare(b.category))
 }

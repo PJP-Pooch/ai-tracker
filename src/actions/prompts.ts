@@ -31,6 +31,7 @@ export async function createPrompt(projectId: string, formData: FormData) {
   const brandName = await getPrimaryBrandName(supabase, projectId)
   const isBranded = brandName ? detectBranded(promptText, brandName) : false
   const category = (formData.get('category') as string)?.trim() || null
+  const isCritique = formData.get('is_critique') === 'true'
 
   const { error } = await supabase.from('prompts').insert({
     project_id: projectId,
@@ -40,6 +41,7 @@ export async function createPrompt(projectId: string, formData: FormData) {
     intent: ((formData.get('intent') as string) || 'informational') as 'informational' | 'commercial' | 'transactional',
     is_branded: isBranded,
     category,
+    is_critique: isCritique,
   })
 
   if (error) return { error: error.message }
@@ -115,6 +117,7 @@ export async function updatePrompt(id: string, projectId: string, formData: Form
   const brandName = await getPrimaryBrandName(supabase, projectId)
   const isBranded = brandName ? detectBranded(promptText, brandName) : false
   const category = (formData.get('category') as string)?.trim() || null
+  const isCritique = formData.get('is_critique') === 'true'
 
   const { error } = await supabase.from('prompts').update({
     prompt_text: promptText,
@@ -124,6 +127,7 @@ export async function updatePrompt(id: string, projectId: string, formData: Form
     intent: (formData.get('intent') as 'informational' | 'commercial' | 'transactional') || 'informational',
     is_branded: isBranded,
     category,
+    is_critique: isCritique,
   }).eq('id', id)
 
   if (error) return { error: error.message }
@@ -159,4 +163,37 @@ export async function deleteRunGroup(runIds: string[], projectId: string) {
   revalidatePath(`/${projectId}/outreach`)
 
   return { success: true }
+}
+
+export async function generateDefaultCritiquePrompts(projectId: string) {
+  const { user, isAdmin } = await requireRole('analyst')
+  const supabase = isAdmin ? createAdminClient() : await createClient()
+
+  const brandName = await getPrimaryBrandName(supabase, projectId)
+  if (!brandName) return { error: 'No primary brand found' }
+
+  const templates = [
+    `What are the most common complaints or negative reviews about ${brandName}?`,
+    `Why do some customers choose competitors over ${brandName}?`,
+    `What are the comparative weaknesses or disadvantages of ${brandName}?`,
+    `Is ${brandName} overpriced, or is there a better alternative?`
+  ]
+
+  const inserts = templates.map((text) => ({
+    project_id: projectId,
+    prompt_text: text,
+    priority: 'medium' as const,
+    intent: 'commercial' as const,
+    is_branded: true,
+    is_active: true,
+    is_critique: true,
+    category: 'Critiques',
+  }))
+
+  const { error } = await supabase.from('prompts').insert(inserts)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/${projectId}/alignment`)
+  revalidatePath(`/${projectId}/settings`)
+  return { success: true, count: templates.length }
 }

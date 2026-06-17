@@ -36,12 +36,13 @@ export async function GET(req: NextRequest) {
     const project = (brand as unknown as { projects: { platforms: string[] } }).projects
     const platforms = project?.platforms ?? ['chatgpt', 'gemini']
 
-    // Fetch unique active categories for this project
+    // Fetch unique active categories for this project (excluding critique prompts)
     const { data: prompts } = await supabase
       .from('prompts')
       .select('category')
       .eq('project_id', brand.project_id)
       .eq('is_active', true)
+      .eq('is_critique', false)
     
     const categories = Array.from(new Set((prompts ?? []).map(p => p.category).filter(Boolean))) as (string | null)[]
     const categoriesToCompute = [null, ...categories] // null represents overall project score

@@ -51,6 +51,8 @@ export async function getLLMResponse(params: {
   userPrompt: string
   modelName: string
   webSearch?: boolean
+  locationCode?: number
+  languageCode?: string
 }): Promise<ParsedLLMResponse> {
   const endpoint = PLATFORM_ENDPOINTS[params.platform]
 
@@ -58,6 +60,13 @@ export async function getLLMResponse(params: {
     user_prompt: params.userPrompt,
     model_name: params.modelName,
     web_search: params.webSearch ?? true,
+  }
+
+  if (params.locationCode) {
+    requestBody.location_code = params.locationCode
+  }
+  if (params.languageCode) {
+    requestBody.language_code = params.languageCode
   }
 
   const response = await dataForSEORequest<LLMResponseResult>(endpoint, [requestBody])

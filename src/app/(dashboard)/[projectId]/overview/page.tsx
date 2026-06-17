@@ -1,9 +1,10 @@
-import { getExecutiveKPIs, getVisibilityTrend, getPlatformBreakdown, getIntentVisibility } from '@/lib/queries/overview'
+import { getExecutiveKPIs, getVisibilityTrend, getPlatformBreakdown, getIntentVisibility, getCategoryPerformance } from '@/lib/queries/overview'
 import { KpiGrid } from '@/components/features/overview/kpi-grid'
 import { ShareOfVoiceGauge } from '@/components/features/overview/share-of-voice-gauge'
 import { VisibilityTrendChart } from '@/components/features/overview/visibility-trend-chart'
 import { PlatformBreakdownTable } from '@/components/features/overview/platform-breakdown-table'
 import { IntentBreakdown } from '@/components/features/overview/intent-breakdown'
+import { CategoryPerformance } from '@/components/features/overview/category-performance'
 import { QueryTypeFilter } from '@/components/features/shared/query-type-filter'
 import { CategoryFilter } from '@/components/features/shared/category-filter'
 import { createDbClient } from '@/lib/supabase/db'
@@ -19,7 +20,8 @@ export default async function OverviewPage({
   const sp = await searchParams
   const queryType = (sp.queryType as 'all' | 'branded' | 'non_branded') || 'all'
   const category = sp.category || undefined
-  const opts = { queryType, category }
+  const dateRange = (sp.dateRange as 'today' | 'yesterday' | '7days' | '30days' | 'all') || undefined
+  const opts = { queryType, category, dateRange }
   const supabase = await createDbClient()
 
   // Fetch unique categories for this project
@@ -29,11 +31,12 @@ export default async function OverviewPage({
     .eq('project_id', projectId)
   const categories = Array.from(new Set((prompts ?? []).map((p) => p.category).filter(Boolean))) as string[]
 
-  const [kpis, trend, platformBreakdown, intentVisibility, primaryBrand] = await Promise.all([
+  const [kpis, trend, platformBreakdown, intentVisibility, categoryPerformance, primaryBrand] = await Promise.all([
     getExecutiveKPIs(projectId, opts),
     getVisibilityTrend(projectId, 30, opts),
     getPlatformBreakdown(projectId, opts),
     getIntentVisibility(projectId, opts),
+    getCategoryPerformance(projectId, opts),
     supabase
       .from('brands')
       .select('name')
@@ -75,6 +78,10 @@ export default async function OverviewPage({
         <div>
           <ShareOfVoiceGauge value={kpis.shareOfVoice} />
         </div>
+      </div>
+
+      <div>
+        <CategoryPerformance data={categoryPerformance} ownBrandName={primaryBrandName} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

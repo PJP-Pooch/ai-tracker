@@ -2,6 +2,7 @@ import { createDbClient } from '@/lib/supabase/db'
 
 export interface QueryFanoutVariation {
   query: string
+  runId: string
   avgRank: number | null
   top10Rate: number
   lastRank: number | null
@@ -12,6 +13,7 @@ export interface QueryFanoutVariation {
 export interface QueryFanoutGroup {
   promptId: string
   promptText: string
+  projectId: string
   category: string | null
   fanoutCount: number
   avgRank: number | null
@@ -38,6 +40,8 @@ export async function getProjectQueryFanouts(
         run_date,
         status,
         query_fanouts (
+          id,
+          run_id,
           query,
           rank_group,
           rank_absolute,
@@ -71,6 +75,7 @@ export async function getProjectQueryFanouts(
     const fanoutsByQuery: Record<
       string,
       Array<{
+        run_id: string
         rank_group: number | null
         rank_absolute: number | null
         ranked_url: string | null
@@ -110,6 +115,7 @@ export async function getProjectQueryFanouts(
 
       return {
         query,
+        runId: latest.run_id,
         avgRank,
         top10Rate,
         lastRank: latest.rank_group,
@@ -132,6 +138,7 @@ export async function getProjectQueryFanouts(
     result.push({
       promptId: prompt.id,
       promptText: prompt.prompt_text,
+      projectId,
       category: prompt.category,
       fanoutCount: totalVariationsCount,
       avgRank: promptAvgRank,

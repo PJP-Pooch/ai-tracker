@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -19,6 +19,17 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { AlignmentPanel } from './alignment-panel'
+
+function splitHighlight(text: string, highlight: string): React.ReactNode[] {
+  if (!highlight) return [text]
+  const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
+  return parts.map((part, i) =>
+    i % 2 === 1
+      ? <mark key={i} className="bg-yellow-200 dark:bg-yellow-800/60 rounded px-0.5 text-foreground">{part}</mark>
+      : part
+  )
+}
 
 function extractDiscoveredBrands(rawResponse: string, trackedNames: string[]): string[] {
   const boldPattern = /\*\*([^*]{2,50})\*\*/g
@@ -83,6 +94,7 @@ interface ResponseDialogProps {
   onOpenChange: (open: boolean) => void
   trackedBrandNames?: string[]
   initialDate?: string
+  highlightText?: string
   projectId: string
   alignmentCheckMode?: 'off' | 'manual' | 'auto'
 }
@@ -91,10 +103,12 @@ function ResponseContent({
   run,
   trackedBrandNames = [],
   projectId,
+  highlightText = '',
 }: {
   run: RunHistory | undefined
   trackedBrandNames?: string[]
   projectId: string
+  highlightText?: string
 }) {
   const [localTrackedNames, setLocalTrackedNames] = useState<string[]>(trackedBrandNames)
   const [addingBrand, setAddingBrand] = useState<{ name: string; domain: string } | null>(null)
@@ -105,20 +119,6 @@ function ResponseContent({
   useEffect(() => {
     setLocalTrackedNames(trackedBrandNames)
   }, [trackedBrandNames])
-
-  if (!run) {
-    return (
-      <div className="text-sm text-muted-foreground py-8 text-center bg-muted/10 rounded-xl border border-dashed border-border/60">
-        No data available for this platform on this scan date.
-      </div>
-    )
-  }
-
-  const discoveredBrands = run.raw_response
-    ? extractDiscoveredBrands(run.raw_response, localTrackedNames)
-    : []
-
-  const activeMentions = run.mentions.filter((m) => m.mentioned)
 
   const brandsInOrder = useMemo(() => {
     if (!run?.raw_response) return []
@@ -142,6 +142,20 @@ function ResponseContent({
     }
     return list
   }, [run?.raw_response])
+
+  if (!run) {
+    return (
+      <div className="text-sm text-muted-foreground py-8 text-center bg-muted/10 rounded-xl border border-dashed border-border/60">
+        No data available for this platform on this scan date.
+      </div>
+    )
+  }
+
+  const discoveredBrands = run.raw_response
+    ? extractDiscoveredBrands(run.raw_response, localTrackedNames)
+    : []
+
+  const activeMentions = run.mentions.filter((m) => m.mentioned)
 
   return (
     <div className="space-y-6">
@@ -301,10 +315,26 @@ function ResponseContent({
                 h1: ({ children }) => <h1 className="text-lg font-bold mt-4 mb-2 first:mt-0 text-foreground">{children}</h1>,
                 h2: ({ children }) => <h2 className="text-base font-bold mt-3 mb-2 first:mt-0 text-foreground">{children}</h2>,
                 h3: ({ children }) => <h3 className="text-sm font-semibold mt-3 mb-1.5 first:mt-0 text-foreground">{children}</h3>,
-                p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
+                p: ({ children }) => (
+                  <p className="mb-3 last:mb-0 leading-relaxed">
+                    {highlightText
+                      ? React.Children.map(children, (child) =>
+                          typeof child === 'string' ? splitHighlight(child, highlightText) : child
+                        )
+                      : children}
+                  </p>
+                ),
                 ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1">{children}</ul>,
                 ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1">{children}</ol>,
-                li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                li: ({ children }) => (
+                  <li className="mb-0.5">
+                    {highlightText
+                      ? React.Children.map(children, (child) =>
+                          typeof child === 'string' ? splitHighlight(child, highlightText) : child
+                        )
+                      : children}
+                  </li>
+                ),
                 strong: ({ children }) => {
                   const textContent = String(children).trim()
                   const cleanBold = textContent.replace(/\s*\([^)]*\)/g, '').replace(/[:.,\-\s]+$/, '').trim().toLowerCase()
@@ -672,12 +702,19 @@ export function ResponseDialog({
   onOpenChange,
   trackedBrandNames = [],
   initialDate = '',
+  highlightText = '',
   projectId,
   alignmentCheckMode = 'off',
 }: ResponseDialogProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string>('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [selectedComparePlatforms, setSelectedComparePlatforms] = useState<Record<string, boolean>>({
+    chatgpt: true,
+    chatgpt_scraper: true,
+    gemini: true,
+    gemini_scraper: true,
+  })
   const router = useRouter()
 
   const runGroups = getRunGroups(runs)
@@ -761,14 +798,12 @@ export function ResponseDialog({
               >
                 Side-by-Side
               </TabsTrigger>
-              {alignmentCheckMode !== 'off' && (
-                <TabsTrigger
-                  value="alignment"
-                  className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent px-1 py-1.5 rounded-none bg-transparent hover:text-foreground/80 font-medium text-sm transition-all cursor-pointer"
-                >
-                  Alignment
-                </TabsTrigger>
-              )}
+              <TabsTrigger
+                value="alignment"
+                className="data-[state=active]:border-primary data-[state=active]:text-primary border-b-2 border-transparent px-1 py-1.5 rounded-none bg-transparent hover:text-foreground/80 font-medium text-sm transition-all cursor-pointer"
+              >
+                Alignment
+              </TabsTrigger>
             </TabsList>
 
             {runGroups.length > 0 && (
@@ -854,7 +889,7 @@ export function ResponseDialog({
           </div>
 
           <TabsContent value="chatgpt" className="flex-1 min-h-0 overflow-y-auto pr-1 mt-0 focus-visible:outline-none">
-            <ResponseContent run={currentChatGPT} trackedBrandNames={trackedBrandNames} projectId={projectId} />
+            <ResponseContent run={currentChatGPT} trackedBrandNames={trackedBrandNames} projectId={projectId} highlightText={highlightText} />
           </TabsContent>
 
           <TabsContent value="chatgpt_scraper" className="flex-1 min-h-0 overflow-y-auto pr-1 mt-0 focus-visible:outline-none">
@@ -869,8 +904,7 @@ export function ResponseDialog({
             <ResponseContent run={currentGeminiScraper} trackedBrandNames={trackedBrandNames} projectId={projectId} />
           </TabsContent>
 
-          {alignmentCheckMode !== 'off' && (
-            <TabsContent value="alignment" className="flex-1 min-h-0 overflow-y-auto pr-1 mt-0 focus-visible:outline-none">
+          <TabsContent value="alignment" className="flex-1 min-h-0 overflow-y-auto pr-1 mt-0 focus-visible:outline-none">
               <div className="space-y-5 pt-1">
                 {(() => {
                   const activeRuns = [
@@ -899,40 +933,90 @@ export function ResponseDialog({
                 })()}
               </div>
             </TabsContent>
-          )}
 
-          <TabsContent value="compare" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
+          <TabsContent value="compare" className="flex-1 min-h-0 mt-0 focus-visible:outline-none flex flex-col gap-4">
             {(() => {
-              const activeRuns = [
-                { label: 'ChatGPT', run: currentChatGPT, color: 'bg-emerald-500 shadow-emerald-500/50' },
-                { label: 'ChatGPT Scraper', run: currentChatGPTScraper, color: 'bg-emerald-600 shadow-emerald-600/50' },
-                { label: 'Gemini', run: currentGemini, color: 'bg-blue-500 shadow-blue-500/50' },
-                { label: 'Gemini Scraper', run: currentGeminiScraper, color: 'bg-blue-600 shadow-blue-600/50' },
-              ].filter((item) => !!item.run)
+              const allRuns = [
+                { id: 'chatgpt', label: 'ChatGPT', run: currentChatGPT, color: 'bg-emerald-500 shadow-emerald-500/50', activeColor: 'bg-emerald-500/10 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/60' },
+                { id: 'chatgpt_scraper', label: 'ChatGPT Scraper', run: currentChatGPTScraper, color: 'bg-emerald-600 shadow-emerald-600/50', activeColor: 'bg-emerald-600/10 text-emerald-700 border-emerald-300/60 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/60' },
+                { id: 'gemini', label: 'Gemini', run: currentGemini, color: 'bg-blue-500 shadow-blue-500/50', activeColor: 'bg-blue-500/10 text-blue-700 border-blue-200/80 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/60' },
+                { id: 'gemini_scraper', label: 'Gemini Scraper', run: currentGeminiScraper, color: 'bg-blue-600 shadow-blue-600/50', activeColor: 'bg-blue-600/10 text-blue-700 border-blue-300/60 dark:bg-emerald-950/30 dark:text-blue-400 dark:border-blue-900/60' },
+              ]
+
+              const availableRuns = allRuns.filter(item => !!item.run)
+              const activeCompareRuns = availableRuns.filter(item => selectedComparePlatforms[item.id])
 
               return (
-                <div className={cn(
-                  "grid gap-6 h-full items-stretch min-h-0",
-                  activeRuns.length === 4
-                    ? "grid-cols-1 lg:grid-cols-2 xl:grid-cols-4"
-                    : activeRuns.length === 3
-                      ? "grid-cols-1 lg:grid-cols-3"
-                      : "grid-cols-1 md:grid-cols-2"
-                )}>
-                  {activeRuns.map(({ label, run, color }, index) => (
-                    <div key={label} className={cn(
-                      "flex flex-col min-h-0 h-full",
-                      index < activeRuns.length - 1 && "lg:border-r lg:border-border/40 lg:pr-6"
-                    )}>
-                      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                        <span className={cn("w-2 h-2 rounded-full shadow-sm", color)} />
-                        {label}
-                      </h3>
-                      <div className="flex-1 overflow-y-auto pr-2 min-h-0">
-                        <ResponseContent run={run} trackedBrandNames={trackedBrandNames} projectId={projectId} />
+                <div className="flex flex-col flex-1 min-h-0 gap-4">
+                  {availableRuns.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2.5 pb-3 border-b border-border/40">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans">
+                        Compare Platforms:
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {availableRuns.map((item) => {
+                          const isSelected = selectedComparePlatforms[item.id]
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => {
+                                setSelectedComparePlatforms(prev => ({
+                                  ...prev,
+                                  [item.id]: !prev[item.id]
+                                }))
+                              }}
+                              className={cn(
+                                "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all shadow-sm cursor-pointer select-none",
+                                isSelected
+                                  ? item.activeColor
+                                  : "bg-muted/40 text-muted-foreground border-border/60 hover:bg-muted/60 hover:text-foreground"
+                              )}
+                            >
+                              <span className={cn(
+                                "w-2.5 h-2.5 rounded-full",
+                                isSelected ? item.color : "bg-muted-foreground/40"
+                              )} />
+                              {item.label}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
-                  ))}
+                  )}
+
+                  {activeCompareRuns.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center flex-1 h-full py-16 text-center border border-dashed border-border/80 rounded-2xl bg-muted/5">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Select at least one platform above to compare standard responses and scraper results side-by-side.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={cn(
+                      "grid gap-6 flex-1 min-h-0 items-stretch",
+                      activeCompareRuns.length === 4
+                        ? "grid-cols-1 lg:grid-cols-2 xl:grid-cols-4"
+                        : activeCompareRuns.length === 3
+                          ? "grid-cols-1 lg:grid-cols-3"
+                          : activeCompareRuns.length === 2
+                            ? "grid-cols-1 md:grid-cols-2"
+                            : "grid-cols-1"
+                    )}>
+                      {activeCompareRuns.map(({ label, run, color }, index) => (
+                        <div key={label} className={cn(
+                          "flex flex-col min-h-0 h-full",
+                          index < activeCompareRuns.length - 1 && "lg:border-r lg:border-border/40 lg:pr-6"
+                        )}>
+                          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                            <span className={cn("w-2 h-2 rounded-full shadow-sm", color)} />
+                            {label}
+                          </h3>
+                          <div className="flex-1 overflow-y-auto pr-2 min-h-0">
+                            <ResponseContent run={run} trackedBrandNames={trackedBrandNames} projectId={projectId} highlightText={highlightText} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })()}

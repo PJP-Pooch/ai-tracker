@@ -160,14 +160,6 @@ export function AlignmentPanel({ runId, checkMode }: AlignmentPanelProps) {
     )
   }
 
-  if (checkMode === 'off') {
-    return (
-      <div className="text-sm text-muted-foreground py-8 text-center bg-muted/10 rounded-xl border border-dashed border-border/60">
-        Alignment checking is off. Enable it in Settings &rarr; Brand Intelligence.
-      </div>
-    )
-  }
-
   if (loading || result?.status === 'checking') {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">

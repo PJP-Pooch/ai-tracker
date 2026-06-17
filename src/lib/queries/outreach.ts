@@ -3,6 +3,7 @@ import { createDbClient } from '@/lib/supabase/db'
 export interface OutreachOpportunityPrompt {
   promptText: string
   url: string
+  lastSeen?: string
 }
 
 export interface OutreachOpportunity {
@@ -21,7 +22,7 @@ export async function getOutreachOpportunities(
   // 1. Fetch brands and competitors for the project
   const [{ data: brands }, { data: competitors }] = await Promise.all([
     supabase.from('brands').select('id, name, domain, is_primary').eq('project_id', projectId),
-    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId),
+    supabase.from('competitors').select('id, name, domain').eq('project_id', projectId).order('name', { ascending: true }),
   ])
 
   if (!brands || brands.length === 0) {
@@ -38,6 +39,7 @@ export async function getOutreachOpportunities(
       id,
       raw_response,
       prompt_id,
+      run_date,
       prompts!inner (
         id,
         prompt_text,
@@ -140,32 +142,80 @@ export async function getOutreachOpportunities(
 
         // Deduplicate prompts. For vertexaisearch redirect URLs, compare only by prompt text.
         // If a real URL is found later, upgrade the redirect URL to the real URL.
-        const existingPromptIdx = outreachOpportunities[cDomain].prompts.findIndex(
+        const isNewVertex = citation.url.includes('vertexaisearch.cloud.google.com')
+        
+        // Helper to get clean URL by removing query params and hash fragment
+        const getCleanUrl = (urlStr: string): string => {
+          if (urlStr.includes('vertexaisearch.cloud.google.com')) {
+            return urlStr
+          }
+          try {
+            const parsed = new URL(urlStr)
+            return `${parsed.origin}${parsed.pathname}`.replace(/\/$/, '')
+          } catch (e) {
+            return urlStr.split(/[?#]/)[0].replace(/\/$/, '')
+          }
+        }
+
+        const cleanNew = getCleanUrl(citation.url)
+        const runDate = run.run_date || ''
+
+        // Find existing prompts matching the text
+        const existingPrompts = outreachOpportunities[cDomain].prompts.filter(
           (p) => p.promptText === promptText
         )
 
-        const isNewVertex = citation.url.includes('vertexaisearch.cloud.google.com')
-
-        if (existingPromptIdx >= 0) {
-          const existingPrompt = outreachOpportunities[cDomain].prompts[existingPromptIdx]
-          const isExistingVertex = existingPrompt.url.includes('vertexaisearch.cloud.google.com')
-
-          // If the existing URL is a vertex redirect and the new URL is a real one, upgrade it
-          if (isExistingVertex && !isNewVertex) {
-            outreachOpportunities[cDomain].prompts[existingPromptIdx].url = citation.url
-          }
-          // If both are real URLs and they are different, keep both as separate targets
-          else if (!isExistingVertex && !isNewVertex && existingPrompt.url !== citation.url) {
+        if (isNewVertex) {
+          // If it's a vertex URL, we only add it if there are no prompts at all for this text
+          if (existingPrompts.length === 0) {
             outreachOpportunities[cDomain].prompts.push({
               promptText,
               url: citation.url,
+              lastSeen: runDate,
+            })
+          } else {
+            // Update lastSeen of existing matches if this run is newer
+            existingPrompts.forEach((ep) => {
+              if (runDate && (!ep.lastSeen || new Date(runDate) > new Date(ep.lastSeen))) {
+                ep.lastSeen = runDate
+              }
             })
           }
         } else {
-          outreachOpportunities[cDomain].prompts.push({
-            promptText,
-            url: citation.url,
-          })
+          // It's a real URL
+          let matchedAndUpdated = false
+
+          for (const ep of existingPrompts) {
+            const isEpVertex = ep.url.includes('vertexaisearch.cloud.google.com')
+            
+            if (isEpVertex) {
+              // Upgrade vertex redirect to real URL
+              ep.url = cleanNew
+              ep.lastSeen = runDate
+              matchedAndUpdated = true
+              break
+            } else {
+              const cleanEp = getCleanUrl(ep.url)
+              if (cleanEp === cleanNew) {
+                // Already exists, update lastSeen if newer
+                if (runDate && (!ep.lastSeen || new Date(runDate) > new Date(ep.lastSeen))) {
+                  ep.lastSeen = runDate
+                }
+                // Ensure it uses the clean URL format
+                ep.url = cleanNew
+                matchedAndUpdated = true
+                break
+              }
+            }
+          }
+
+          if (!matchedAndUpdated) {
+            outreachOpportunities[cDomain].prompts.push({
+              promptText,
+              url: cleanNew,
+              lastSeen: runDate,
+            })
+          }
         }
       }
     }

@@ -20,6 +20,7 @@ interface PromptRunsListProps {
     intent: string | null
     is_branded?: boolean | null
     category?: string | null
+    is_critique?: boolean | null
   }
   projectId: string
 }
@@ -45,6 +46,7 @@ export function PromptRunsList({ runs, brandId, trackedBrandNames, prompt, proje
     isBranded: prompt.is_branded ?? false,
     intent: (prompt.intent as 'informational' | 'commercial' | 'transactional') || 'informational',
     category: prompt.category || null,
+    isCritique: prompt.is_critique ?? false,
     chatgpt_position: null,
     chatgpt_mentioned: false,
     chatgpt_sentiment: null,
@@ -54,6 +56,9 @@ export function PromptRunsList({ runs, brandId, trackedBrandNames, prompt, proje
     gemini_sentiment: null,
     gemini_mention_type: null,
     citationCount: 0,
+    citationShare: null,
+    avgPosition: null,
+    webSearchPct: null,
     lastRunDate: null,
   }
 

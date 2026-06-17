@@ -29,9 +29,10 @@ import { cn } from '@/lib/utils'
 
 interface OutreachTableProps {
   data: OutreachOpportunity[]
+  competitorNames?: string[]
 }
 
-export function OutreachTable({ data }: OutreachTableProps) {
+export function OutreachTable({ data, competitorNames = [] }: OutreachTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
@@ -54,9 +55,10 @@ export function OutreachTable({ data }: OutreachTableProps) {
     const headers = [
       'Outreach Target Domain',
       'Competitor Citations',
-      'Brands Mentioned',
+      'Competitors Mentioned',
       'Prompt',
       'Recommendation URL',
+      'Last Seen',
     ]
     
     const escapeCSV = (val: any) => {
@@ -76,6 +78,7 @@ export function OutreachTable({ data }: OutreachTableProps) {
               escapeCSV(row.competitorsCited),
               '',
               '',
+              '',
             ].join(',')
           ]
         }
@@ -85,6 +88,7 @@ export function OutreachTable({ data }: OutreachTableProps) {
           escapeCSV(row.competitorsCited),
           escapeCSV(p.promptText),
           escapeCSV(p.url),
+          escapeCSV(p.lastSeen ? new Date(p.lastSeen).toLocaleDateString() : ''),
         ].join(','))
       }),
     ]
@@ -132,16 +136,32 @@ export function OutreachTable({ data }: OutreachTableProps) {
     },
     {
       accessorKey: 'competitorsCited',
-      header: 'Brands Mentioned',
+      header: 'Competitors Mentioned',
       cell: ({ getValue }) => {
         const brands = (getValue() as string).split(',').map((b) => b.trim())
+        const competitorColorClasses = [
+          // Index 0: Purple (secondary)
+          'bg-purple-500/5 text-purple-600 border-purple-500/10 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
+          // Index 1: Emerald/Green (tertiary)
+          'bg-emerald-500/5 text-emerald-600 border-emerald-500/10 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
+          // Index 2: Amber/Orange (quaternary)
+          'bg-amber-500/5 text-amber-600 border-amber-500/10 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+          // Index 3: Cyan (quinary)
+          'bg-cyan-500/5 text-cyan-600 border-cyan-500/10 dark:bg-cyan-500/10 dark:text-cyan-400 dark:border-cyan-500/20',
+        ]
         return (
           <div className="flex flex-wrap gap-1">
-            {brands.map((b) => (
-              <Badge key={b} variant="outline" className="bg-purple-500/5 text-purple-600 border-purple-500/10 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20 text-[10px] py-0 px-1.5 font-medium">
-                {b}
-              </Badge>
-            ))}
+            {brands.map((b) => {
+              const idx = competitorNames.indexOf(b)
+              const colorClass = idx !== -1
+                ? competitorColorClasses[idx % competitorColorClasses.length]
+                : 'bg-purple-500/5 text-purple-600 border-purple-500/10 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
+              return (
+                <Badge key={b} variant="outline" className={cn("text-[10px] py-0 px-1.5 font-medium", colorClass)}>
+                  {b}
+                </Badge>
+              )
+            })}
           </div>
         )
       },
@@ -266,6 +286,15 @@ export function OutreachTable({ data }: OutreachTableProps) {
                             <div key={idx} className="p-3 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-muted/5 transition-colors">
                               <div className="space-y-1 max-w-xl text-left">
                                 <span className="font-medium text-foreground whitespace-normal break-words block">{p.promptText}</span>
+                                {p.lastSeen && (
+                                  <span className="text-xs text-muted-foreground block">
+                                    Last seen: {new Date(p.lastSeen).toLocaleDateString(undefined, {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })}
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                                 <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={p.url}>

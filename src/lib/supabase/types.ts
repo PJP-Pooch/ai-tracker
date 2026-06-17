@@ -69,6 +69,8 @@ export type Database = {
           schedule_frequency: 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly'
           brand_positioning: string | null
           alignment_check_mode: 'off' | 'manual' | 'auto'
+          target_location_code: number | null
+          target_language_code: string | null
         }
         Insert: {
           id?: string
@@ -79,6 +81,8 @@ export type Database = {
           schedule_frequency?: 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly'
           brand_positioning?: string | null
           alignment_check_mode?: 'off' | 'manual' | 'auto'
+          target_location_code?: number | null
+          target_language_code?: string | null
         }
         Update: {
           id?: string
@@ -89,6 +93,8 @@ export type Database = {
           schedule_frequency?: 'paused' | 'daily' | 'twice_daily' | 'four_times_daily' | 'weekly'
           brand_positioning?: string | null
           alignment_check_mode?: 'off' | 'manual' | 'auto'
+          target_location_code?: number | null
+          target_language_code?: string | null
         }
         Relationships: []
       }
@@ -214,6 +220,7 @@ export type Database = {
           is_branded: boolean
           intent: 'informational' | 'commercial' | 'transactional'
           category: string | null
+          is_critique: boolean
           created_at: string
         }
         Insert: {
@@ -226,6 +233,7 @@ export type Database = {
           is_branded?: boolean
           intent?: 'informational' | 'commercial' | 'transactional'
           category?: string | null
+          is_critique?: boolean
           created_at?: string
         }
         Update: {
@@ -238,6 +246,7 @@ export type Database = {
           is_branded?: boolean
           intent?: 'informational' | 'commercial' | 'transactional'
           category?: string | null
+          is_critique?: boolean
           created_at?: string
         }
         Relationships: [

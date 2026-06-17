@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, Fragment } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -9,9 +10,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import type { GapMatrixRow, CompetitorGapStatus } from '@/lib/queries/competitors'
-import { Check, MessageSquare, X, HelpCircle } from 'lucide-react'
+import { Check, MessageSquare, X, HelpCircle, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface GapMatrixTableProps {
   data: GapMatrixRow[]
@@ -20,64 +22,72 @@ interface GapMatrixTableProps {
 }
 
 export function GapMatrixTable({ data, competitorNames, ownBrandName }: GapMatrixTableProps) {
+  const [activePlatform, setActivePlatform] = useState<'chatgpt' | 'gemini'>('chatgpt')
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
+
   const allPlatformBrands = [ownBrandName, ...competitorNames]
+  const isGpt = activePlatform === 'chatgpt'
+
+  // Group by category
+  const groupedData = data.reduce((acc, row) => {
+    const cat = row.category && row.category.trim() !== '' ? row.category.trim() : 'Uncategorized'
+    if (!acc[cat]) {
+      acc[cat] = []
+    }
+    acc[cat].push(row)
+    return acc
+  }, {} as Record<string, GapMatrixRow[]>)
+
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories((prev) => ({
+      ...prev,
+      [category]: !prev[category],
+    }))
+  }
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-      <div className="p-5 border-b border-border bg-muted/20">
-        <h3 className="font-bold text-base text-foreground">Competitor Visibility Gap Matrix</h3>
-        <p className="text-xs text-muted-foreground mt-1">
-          Detailed prompt-by-prompt mapping comparing brand vs. competitor citation and mention status.
-        </p>
+      <div className="p-5 border-b border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h3 className="font-bold text-base text-foreground">Competitor Visibility Gap Matrix</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Detailed prompt-by-prompt mapping comparing brand vs. competitor citation and mention status.
+          </p>
+        </div>
+        <Tabs
+          value={activePlatform}
+          onValueChange={(val) => setActivePlatform(val as 'chatgpt' | 'gemini')}
+          className="w-fit"
+        >
+          <TabsList className="h-9">
+            <TabsTrigger value="chatgpt" className="px-4 text-xs font-semibold">
+              ChatGPT
+            </TabsTrigger>
+            <TabsTrigger value="gemini" className="px-4 text-xs font-semibold">
+              Gemini
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
+
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            {/* Platform header row */}
-            <TableRow className="bg-muted/30 hover:bg-muted/30 border-b-0">
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase py-2" colSpan={2}>
-                Target Query Details
-              </TableHead>
-              <TableHead 
-                className="font-bold text-xs text-center border-l border-r border-border/60 text-indigo-600 bg-indigo-50/20 uppercase tracking-wider py-2" 
-                colSpan={allPlatformBrands.length}
-              >
-                ChatGPT
-              </TableHead>
-              <TableHead 
-                className="font-bold text-xs text-center border-l text-emerald-600 bg-emerald-50/20 uppercase tracking-wider py-2" 
-                colSpan={allPlatformBrands.length}
-              >
-                Gemini
-              </TableHead>
-            </TableRow>
-
-            {/* Brand details sub-header row */}
             <TableRow className="bg-muted/50">
               <TableHead className="text-xs font-bold uppercase w-1/3">Prompt</TableHead>
               <TableHead className="text-xs font-bold uppercase w-32">Intent</TableHead>
-              
-              {/* ChatGPT Brands */}
-              {allPlatformBrands.map((name, idx) => (
-                <TableHead 
-                  key={`gpt-${name}`} 
-                  className={cn(
-                    "text-xs font-bold text-center capitalize py-3 px-2 min-w-28",
-                    idx === 0 ? "border-l border-border/80 font-black text-indigo-700 bg-indigo-50/10" : "",
-                    idx === allPlatformBrands.length - 1 ? "border-r border-border/60" : ""
-                  )}
-                >
-                  {name === ownBrandName ? '✨ You' : name}
-                </TableHead>
-              ))}
 
-              {/* Gemini Brands */}
+              {/* Brands */}
               {allPlatformBrands.map((name, idx) => (
-                <TableHead 
-                  key={`gem-${name}`} 
+                <TableHead
+                  key={`${activePlatform}-${name}`}
                   className={cn(
                     "text-xs font-bold text-center capitalize py-3 px-2 min-w-28",
-                    idx === 0 ? "border-l border-border/80 font-black text-emerald-700 bg-emerald-50/10" : ""
+                    idx === 0
+                      ? isGpt
+                        ? "border-l border-border/80 font-black text-indigo-700 bg-indigo-50/10 dark:text-indigo-400 dark:bg-indigo-950/10"
+                        : "border-l border-border/80 font-black text-emerald-700 bg-emerald-50/10 dark:text-emerald-400 dark:bg-emerald-950/10"
+                      : "text-muted-foreground"
                   )}
                 >
                   {name === ownBrandName ? '✨ You' : name}
@@ -88,64 +98,90 @@ export function GapMatrixTable({ data, competitorNames, ownBrandName }: GapMatri
           <TableBody>
             {data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={2 + allPlatformBrands.length * 2} className="text-center py-12 text-muted-foreground">
+                <TableCell
+                  colSpan={3 + competitorNames.length}
+                  className="text-center py-12 text-muted-foreground"
+                >
                   No tracking data available. Ensure you have active prompts and completed runs.
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((row) => (
-                <TableRow key={row.promptId} className="hover:bg-muted/20">
-                  <TableCell className="font-medium text-sm text-foreground/90 whitespace-normal break-words py-3 min-w-[280px]">{row.promptText}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'text-[10px] font-semibold uppercase tracking-wider',
-                        row.intent === 'transactional'
-                          ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200'
-                          : row.intent === 'commercial'
-                            ? 'bg-purple-100/50 text-purple-700 border-purple-200'
-                            : 'bg-sky-100/50 text-sky-700 border-sky-200'
-                      )}
+              Object.entries(groupedData).map(([category, prompts]) => {
+                const isCollapsed = !!collapsedCategories[category]
+
+                return (
+                  <Fragment key={category}>
+                    {/* Collapsible Category Header Row */}
+                    <TableRow
+                      className="bg-muted/20 hover:bg-muted/30 cursor-pointer transition-colors border-y border-border/60"
+                      onClick={() => toggleCategory(category)}
                     >
-                      {row.intent}
-                    </Badge>
-                  </TableCell>
-
-                  {/* ChatGPT Cells */}
-                  {allPlatformBrands.map((name, idx) => {
-                    const status = getPlatformBrandStatus(row.chatgpt, name, ownBrandName);
-                    return (
-                      <TableCell 
-                        key={`val-gpt-${name}`} 
-                        className={cn(
-                          "py-3 px-2 text-center",
-                          idx === 0 ? "border-l border-border/40 bg-indigo-50/5" : "",
-                          idx === allPlatformBrands.length - 1 ? "border-r border-border/40" : ""
-                        )}
+                      <TableCell
+                        colSpan={3 + competitorNames.length}
+                        className="py-2.5 px-4 font-bold text-xs text-foreground uppercase tracking-wider select-none"
                       >
-                        <StatusIndicator status={status} />
+                        <div className="flex items-center gap-2">
+                          {isCollapsed ? (
+                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                          )}
+                          <span>{category}</span>
+                          <Badge variant="secondary" className="ml-1.5 font-normal text-[10px] px-1.5 py-0.5">
+                            {prompts.length} {prompts.length === 1 ? 'prompt' : 'prompts'}
+                          </Badge>
+                        </div>
                       </TableCell>
-                    )
-                  })}
+                    </TableRow>
 
-                  {/* Gemini Cells */}
-                  {allPlatformBrands.map((name, idx) => {
-                    const status = getPlatformBrandStatus(row.gemini, name, ownBrandName);
-                    return (
-                      <TableCell 
-                        key={`val-gem-${name}`} 
-                        className={cn(
-                          "py-3 px-2 text-center",
-                          idx === 0 ? "border-l border-border/40 bg-emerald-50/5" : ""
-                        )}
-                      >
-                        <StatusIndicator status={status} />
-                      </TableCell>
-                    )
-                  })}
-                </TableRow>
-              ))
+                    {/* Prompts under this category */}
+                    {!isCollapsed &&
+                      prompts.map((row) => (
+                        <TableRow key={row.promptId} className="hover:bg-muted/10">
+                          <TableCell className="font-medium text-sm text-foreground/90 whitespace-normal break-words py-3 min-w-[280px]">
+                            {row.promptText}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[10px] font-semibold uppercase tracking-wider',
+                                row.intent === 'transactional'
+                                  ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200'
+                                  : row.intent === 'commercial'
+                                    ? 'bg-purple-100/50 text-purple-700 border-purple-200'
+                                    : 'bg-sky-100/50 text-sky-700 border-sky-200'
+                              )}
+                            >
+                              {row.intent}
+                            </Badge>
+                          </TableCell>
+
+                          {/* Platforms cells */}
+                          {allPlatformBrands.map((name, idx) => {
+                            const platformData = isGpt ? row.chatgpt : row.gemini
+                            const status = getPlatformBrandStatus(platformData, name, ownBrandName)
+                            return (
+                              <TableCell
+                                key={`val-${activePlatform}-${name}`}
+                                className={cn(
+                                  "py-3 px-2 text-center",
+                                  idx === 0
+                                    ? isGpt
+                                      ? "border-l border-border/40 bg-indigo-50/5 dark:bg-indigo-950/5"
+                                      : "border-l border-border/40 bg-emerald-50/5 dark:bg-emerald-950/5"
+                                    : ""
+                                )}
+                              >
+                                <StatusIndicator status={status} />
+                              </TableCell>
+                            )
+                          })}
+                        </TableRow>
+                      ))}
+                  </Fragment>
+                )
+              })
             )}
           </TableBody>
         </Table>

@@ -4,6 +4,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Sparkles } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export function PromptsFilters() {
   const router = useRouter()
@@ -21,6 +24,17 @@ export function PromptsFilters() {
     },
     [router, searchParams]
   )
+
+  const showCritiques = searchParams.get('showCritiques') === 'true'
+  const toggleCritiques = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (showCritiques) {
+      params.delete('showCritiques')
+    } else {
+      params.set('showCritiques', 'true')
+    }
+    router.push(`?${params.toString()}`)
+  }
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
@@ -138,6 +152,23 @@ export function PromptsFilters() {
             <SelectItem value="none">None (List)</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+          Critiques
+        </label>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleCritiques}
+          className={cn(
+            'h-10 gap-1.5 text-xs font-semibold',
+            showCritiques && 'bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-400'
+          )}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          {showCritiques ? 'Hiding Critiques' : 'Show Critiques'}
+        </Button>
       </div>
     </div>
   )

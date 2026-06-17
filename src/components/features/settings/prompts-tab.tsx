@@ -33,6 +33,7 @@ function EditPromptDialog({ prompt, categories, projectId }: { prompt: Prompt; c
   const [priority, setPriority] = useState(prompt.priority)
   const [intent, setIntent] = useState(prompt.intent ?? 'informational')
   const [category, setCategory] = useState(prompt.category ?? '')
+  const [isCritique, setIsCritique] = useState(prompt.is_critique ?? false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleUpdate(formData: FormData) {
@@ -40,6 +41,7 @@ function EditPromptDialog({ prompt, categories, projectId }: { prompt: Prompt; c
     formData.set('intent', intent)
     formData.set('category', category)
     formData.set('is_active', formData.get('is_active') === 'on' ? 'true' : 'false')
+    formData.set('is_critique', isCritique ? 'true' : 'false')
 
     const result = await updatePrompt(prompt.id, projectId, formData)
     if (result?.error) {
@@ -132,6 +134,17 @@ function EditPromptDialog({ prompt, categories, projectId }: { prompt: Prompt; c
             <Label htmlFor={`edit-active-${prompt.id}`} className="cursor-pointer text-sm font-medium">Active / Tracked</Label>
           </div>
 
+          <div className="flex items-center gap-2.5 py-1">
+            <input
+              type="checkbox"
+              id={`edit-critique-${prompt.id}`}
+              checked={isCritique}
+              onChange={(e) => setIsCritique(e.target.checked)}
+              className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
+            />
+            <Label htmlFor={`edit-critique-${prompt.id}`} className="cursor-pointer text-sm font-medium">Brand Critique Prompt</Label>
+          </div>
+
           {error && <p className="text-sm text-red-500">{error}</p>}
           <Button type="submit" className="w-full gradient-indigo mt-2">Save Changes</Button>
         </form>
@@ -155,6 +168,7 @@ export function PromptsTab({
   const [bulkOpen, setBulkOpen] = useState(false)
   const [priority, setPriority] = useState('medium')
   const [intent, setIntent] = useState('informational')
+  const [isCritique, setIsCritique] = useState(false)
 
   const categories = Array.from(
     new Set(prompts.map((p) => p.category).filter(Boolean))
@@ -163,11 +177,13 @@ export function PromptsTab({
   async function handleCreate(formData: FormData) {
     formData.set('priority', priority)
     formData.set('intent', intent)
+    formData.set('is_critique', isCritique ? 'true' : 'false')
     const result = await createPrompt(projectId, formData)
     if (result?.error) {
       setError(result.error)
     } else {
       setError(null)
+      setIsCritique(false)
       const form = document.querySelector('form')
       if (form) form.reset()
     }
@@ -213,6 +229,11 @@ export function PromptsTab({
                   {prompt.is_branded && (
                     <Badge variant="outline" className="bg-orange-100/60 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900/50">
                       Branded
+                    </Badge>
+                  )}
+                  {prompt.is_critique && (
+                    <Badge variant="outline" className="bg-rose-100/60 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/50">
+                      Critique
                     </Badge>
                   )}
                   {!prompt.is_active && (
@@ -336,6 +357,16 @@ export function PromptsTab({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="flex items-center gap-2.5 py-1">
+                <input
+                  type="checkbox"
+                  id="add-critique"
+                  checked={isCritique}
+                  onChange={(e) => setIsCritique(e.target.checked)}
+                  className="h-4 w-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
+                />
+                <Label htmlFor="add-critique" className="cursor-pointer text-sm font-medium">Brand Critique Prompt</Label>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="gradient-indigo">Add Prompt</Button>

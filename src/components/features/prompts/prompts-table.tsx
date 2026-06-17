@@ -27,7 +27,7 @@ import { PositionCell } from './position-cell'
 import { SentimentBadge } from './sentiment-badge'
 import { ResponseDialog } from './response-dialog'
 import type { PromptTableRow, RunHistory } from '@/lib/queries/prompts'
-import { ChevronDown, ChevronUp, ChevronsUpDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronUp, ChevronsUpDown, ChevronRight, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface PromptsTableProps {
@@ -46,6 +46,14 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [], alignmen
 
   const searchParams = useSearchParams()
   const groupBy = searchParams.get('groupBy') ?? 'category'
+  const platform = searchParams.get('platform') ?? 'all'
+
+  const columnVisibility = {
+    chatgpt_position: platform !== 'gemini',
+    chatgpt_sentiment: platform !== 'gemini',
+    gemini_position: platform !== 'chatgpt',
+    gemini_sentiment: platform !== 'chatgpt',
+  }
 
   async function openDialog(prompt: PromptTableRow) {
     setSelectedPrompt(prompt)
@@ -159,12 +167,53 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [], alignmen
       ),
       size: 70,
     },
+    {
+      accessorKey: 'citationShare',
+      header: 'Citation Share',
+      cell: ({ getValue }) => {
+        const v = getValue() as number | null
+        return v !== null ? (
+          <span className="text-sm text-foreground/80">{v.toFixed(1)}%</span>
+        ) : (
+          <span className="text-muted-foreground/40 text-sm">—</span>
+        )
+      },
+      size: 110,
+    },
+    {
+      accessorKey: 'avgPosition',
+      header: 'Avg Position',
+      cell: ({ getValue }) => {
+        const v = getValue() as number | null
+        return v !== null ? (
+          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold border border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            {v.toFixed(1)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/40 text-sm">—</span>
+        )
+      },
+      size: 100,
+    },
+    {
+      accessorKey: 'webSearchPct',
+      header: '% Web Searches',
+      cell: ({ getValue }) => {
+        const v = getValue() as number | null
+        return v !== null ? (
+          <span className="text-sm text-foreground/80">{v.toFixed(0)}%</span>
+        ) : (
+          <span className="text-muted-foreground/40 text-sm">—</span>
+        )
+      },
+      size: 120,
+    },
   ]
 
   const table = useReactTable({
     data,
     columns,
-    state: { sorting },
+    state: { sorting, columnVisibility },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -186,12 +235,14 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [], alignmen
   }
 
   const categoriesList = Object.keys(groupedRows).sort((a, b) => {
+    if (a === 'Critiques') return 1
+    if (b === 'Critiques') return -1
     if (a === 'Uncategorized') return 1
     if (b === 'Uncategorized') return -1
     return a.localeCompare(b)
   })
 
-  const isExpanded = (cat: string) => expandedCategories[cat] !== false
+  const isExpanded = (cat: string) => expandedCategories[cat] === true
   const toggleExpand = (cat: string) => {
     setExpandedCategories((prev) => ({ ...prev, [cat]: !isExpanded(cat) }))
   }
@@ -260,11 +311,36 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [], alignmen
 
                   const citationSum = catRows.reduce((sum, r) => sum + r.original.citationCount, 0)
 
+                  // Citation share: brand citations / total citations across category
+                  const catCitationShareRows = catRows.filter((r) => r.original.citationShare !== null)
+                  const catCitationShare = catCitationShareRows.length > 0
+                    ? catCitationShareRows.reduce((sum, r) => sum + (r.original.citationShare ?? 0), 0) / catCitationShareRows.length
+                    : null
+
+                  // Avg position: across both platforms for all rows
+                  const catAvgPosRows = catRows.filter((r) => r.original.avgPosition !== null)
+                  const catAvgPosition = catAvgPosRows.length > 0
+                    ? catAvgPosRows.reduce((sum, r) => sum + (r.original.avgPosition ?? 0), 0) / catAvgPosRows.length
+                    : null
+
+                  // Web search %: average across rows
+                  const catWebRows = catRows.filter((r) => r.original.webSearchPct !== null)
+                  const catWebSearchPct = catWebRows.length > 0
+                    ? catWebRows.reduce((sum, r) => sum + (r.original.webSearchPct ?? 0), 0) / catWebRows.length
+                    : null
+
+                  const isCritiqueCat = catRows.some((r) => r.original.isCritique)
+
                   return (
                     <Fragment key={`cat-group-${cat}`}>
                       {/* Category Header Row */}
                       <TableRow
-                        className="bg-muted/20 hover:bg-muted/30 font-semibold cursor-pointer border-b select-none group/cat"
+                        className={cn(
+                          'font-semibold cursor-pointer border-b select-none group/cat',
+                          isCritiqueCat
+                            ? 'bg-indigo-50/60 hover:bg-indigo-50 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/30'
+                            : 'bg-muted/20 hover:bg-muted/30'
+                        )}
                         onClick={() => toggleExpand(cat)}
                       >
                         {/* Prompt Name Cell */}
@@ -282,8 +358,14 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [], alignmen
                               <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-muted-foreground/10 text-muted-foreground border-none font-semibold uppercase tracking-wider">
                                 {total} prompt{total !== 1 ? 's' : ''}
                               </Badge>
+                              {isCritiqueCat && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-100/60 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/50 px-1.5 py-0.5 rounded-full">
+                                  <Sparkles className="w-2.5 h-2.5" />
+                                  Critique · excluded from scores
+                                </span>
+                              )}
                             </div>
-                            {cat !== 'Uncategorized' && (
+                            {cat !== 'Uncategorized' && !isCritiqueCat && (
                               <Link
                                 href={`/${projectId}/overview?category=${encodeURIComponent(cat)}`}
                                 onClick={(e) => e.stopPropagation()}
@@ -296,51 +378,114 @@ export function PromptsTable({ data, projectId, trackedBrandNames = [], alignmen
                         </TableCell>
 
                         {/* Intent Cell */}
-                        <TableCell className="py-4 px-4 text-muted-foreground/40 text-xs">—</TableCell>
+                        <TableCell className="py-4 px-4">
+                          {(() => {
+                            const intents = catRows.map((r) => r.original.intent || 'informational')
+                            const uniqueIntents = Array.from(new Set(intents))
+                            if (uniqueIntents.length === 0) {
+                              return <span className="text-muted-foreground/40 text-sm">—</span>
+                            }
+                            const displayIntent = uniqueIntents.length === 1 ? uniqueIntents[0] : 'mixed'
+                            return (
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'text-[10px] font-semibold uppercase tracking-wider',
+                                  displayIntent === 'transactional'
+                                    ? 'bg-emerald-100/60 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50'
+                                    : displayIntent === 'commercial'
+                                      ? 'bg-purple-100/60 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-900/50'
+                                      : displayIntent === 'informational'
+                                        ? 'bg-sky-100/60 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900/50'
+                                        : 'bg-slate-100/60 text-slate-700 border-slate-200 dark:bg-slate-950/40 dark:text-slate-400 dark:border-slate-900/50'
+                                )}
+                              >
+                                {displayIntent}
+                              </Badge>
+                            )
+                          })()}
+                        </TableCell>
 
                         {/* ChatGPT Position */}
-                        <TableCell className="py-4 px-4">
-                          {chatgptAvgPos !== null ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-400">
-                                {chatgptAvgPos.toFixed(1)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground/40 text-sm">—</span>
-                          )}
-                        </TableCell>
+                        {columnVisibility.chatgpt_position && (
+                          <TableCell className="py-4 px-4">
+                            {chatgptAvgPos !== null ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold border border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-400">
+                                  {chatgptAvgPos.toFixed(1)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground/40 text-sm">—</span>
+                            )}
+                          </TableCell>
+                        )}
 
                         {/* ChatGPT Sentiment (rendered as Category Visibility Score) */}
-                        <TableCell className="py-4 px-4">
-                          <span className="text-sm font-bold text-foreground">
-                            {chatgptVis.toFixed(0)}%
-                          </span>
-                        </TableCell>
+                        {columnVisibility.chatgpt_sentiment && (
+                          <TableCell className="py-4 px-4">
+                            <span className="text-sm font-bold text-foreground">
+                              {chatgptVis.toFixed(0)}%
+                            </span>
+                          </TableCell>
+                        )}
 
                         {/* Gemini Position */}
-                        <TableCell className="py-4 px-4">
-                          {geminiAvgPos !== null ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400">
-                                {geminiAvgPos.toFixed(1)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground/40 text-sm">—</span>
-                          )}
-                        </TableCell>
+                        {columnVisibility.gemini_position && (
+                          <TableCell className="py-4 px-4">
+                            {geminiAvgPos !== null ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-400">
+                                  {geminiAvgPos.toFixed(1)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground/40 text-sm">—</span>
+                            )}
+                          </TableCell>
+                        )}
 
                         {/* Gemini Sentiment (rendered as Category Visibility Score) */}
-                        <TableCell className="py-4 px-4">
-                          <span className="text-sm font-bold text-foreground">
-                            {geminiVis.toFixed(0)}%
-                          </span>
-                        </TableCell>
+                        {columnVisibility.gemini_sentiment && (
+                          <TableCell className="py-4 px-4">
+                            <span className="text-sm font-bold text-foreground">
+                              {geminiVis.toFixed(0)}%
+                            </span>
+                          </TableCell>
+                        )}
 
                         {/* Citations */}
                         <TableCell className="py-4 px-4">
                           <span className="text-sm text-foreground/80 font-bold">{citationSum}</span>
+                        </TableCell>
+
+                        {/* Citation Share */}
+                        <TableCell className="py-4 px-4">
+                          {catCitationShare !== null ? (
+                            <span className="text-sm font-bold text-foreground">{catCitationShare.toFixed(1)}%</span>
+                          ) : (
+                            <span className="text-muted-foreground/40 text-sm">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Avg Position */}
+                        <TableCell className="py-4 px-4">
+                          {catAvgPosition !== null ? (
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold border border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                              {catAvgPosition.toFixed(1)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/40 text-sm">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Web Searches % */}
+                        <TableCell className="py-4 px-4">
+                          {catWebSearchPct !== null ? (
+                            <span className="text-sm font-bold text-foreground">{catWebSearchPct.toFixed(0)}%</span>
+                          ) : (
+                            <span className="text-muted-foreground/40 text-sm">—</span>
+                          )}
                         </TableCell>
                       </TableRow>
 

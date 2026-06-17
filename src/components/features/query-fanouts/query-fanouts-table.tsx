@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo, Fragment } from 'react'
-import { ChevronDown, ChevronRight, ExternalLink, Search, Sparkles, Link as LinkIcon } from 'lucide-react'
+import { useState, useMemo, Fragment, useCallback } from 'react'
+import { ChevronDown, ChevronRight, ExternalLink, Search, Sparkles, Link as LinkIcon, RefreshCw } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -13,10 +13,45 @@ interface QueryFanoutsTableProps {
   data: QueryFanoutGroup[]
 }
 
+interface RecheckState {
+  rank: number | null
+  url: string | null
+  loading: boolean
+  error: string | null
+}
+
 export function QueryFanoutsTable({ data }: QueryFanoutsTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [expandedPrompts, setExpandedPrompts] = useState<Record<string, boolean>>({})
+  const [recheckState, setRecheckState] = useState<Record<string, RecheckState>>({})
+
+  const handleRecheck = useCallback(async (query: string, runId: string, projectId: string) => {
+    const key = `${runId}::${query}`
+    setRecheckState((prev) => ({
+      ...prev,
+      [key]: { rank: prev[key]?.rank ?? null, url: prev[key]?.url ?? null, loading: true, error: null },
+    }))
+    try {
+      const res = await fetch('/api/recheck-serp-rank', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, runId, projectId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Recheck failed')
+      setRecheckState((prev) => ({
+        ...prev,
+        [key]: { rank: json.rank_group, url: json.ranked_url, loading: false, error: null },
+      }))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setRecheckState((prev) => ({
+        ...prev,
+        [key]: { rank: prev[key]?.rank ?? null, url: prev[key]?.url ?? null, loading: false, error: msg },
+      }))
+    }
+  }, [])
 
   // Extract unique categories
   const categories = useMemo(() => {
@@ -166,7 +201,7 @@ export function QueryFanoutsTable({ data }: QueryFanoutsTableProps) {
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-8" />
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider py-3.5">
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider py-3.5 w-[380px] max-w-[380px]">
                 Main Prompt / Scraper Keyword
               </TableHead>
               <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider w-36">
@@ -209,7 +244,7 @@ export function QueryFanoutsTable({ data }: QueryFanoutsTableProps) {
                           <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         )}
                       </TableCell>
-                      <TableCell className="font-medium text-foreground py-3.5 max-w-md break-words">
+                      <TableCell className="font-medium text-foreground py-3.5 w-[380px] max-w-[380px] whitespace-normal break-words">
                         {item.promptText}
                       </TableCell>
                       <TableCell className="py-3.5">
@@ -271,18 +306,29 @@ export function QueryFanoutsTable({ data }: QueryFanoutsTableProps) {
                                   <TableHead className="font-semibold text-xs text-muted-foreground w-40 text-right py-2">
                                     Last Checked
                                   </TableHead>
+                                  <TableHead className="font-semibold text-xs text-muted-foreground w-24 text-center py-2">
+                                    Recheck
+                                  </TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {item.variations.map((v) => (
+                                {item.variations.map((v) => {
+                                    const key = `${v.runId}::${v.query}`
+                                    const recheck = recheckState[key]
+                                    const displayRank = recheck ? recheck.rank : v.lastRank
+                                    const displayUrl = recheck ? recheck.url : v.lastUrl
+                                    const isLoading = recheck?.loading ?? false
+                                    return (
                                   <TableRow key={v.query} className="hover:bg-background/80">
                                     <TableCell className="font-medium text-sm text-foreground/80 py-2.5">
                                       {v.query}
                                     </TableCell>
                                     <TableCell className="text-center py-2.5">
-                                      {v.lastRank !== null ? (
+                                      {isLoading ? (
+                                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-muted-foreground mx-auto" />
+                                      ) : displayRank !== null ? (
                                         <Badge className="bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 font-bold px-2 py-0.5 text-xs">
-                                          Rank {v.lastRank}
+                                          Rank {displayRank}
                                         </Badge>
                                       ) : (
                                         <Badge variant="secondary" className="text-muted-foreground bg-muted border-none font-semibold px-2 py-0.5 text-xs">
@@ -291,16 +337,16 @@ export function QueryFanoutsTable({ data }: QueryFanoutsTableProps) {
                                       )}
                                     </TableCell>
                                     <TableCell className="py-2.5 max-w-xs truncate">
-                                      {v.lastUrl ? (
+                                      {displayUrl ? (
                                         <a
-                                          href={v.lastUrl}
+                                          href={displayUrl}
                                           target="_blank"
                                           rel="noreferrer"
                                           className="text-xs text-primary font-medium hover:underline flex items-center gap-1 cursor-pointer truncate"
-                                          title={v.lastUrl}
+                                          title={displayUrl}
                                         >
                                           <LinkIcon className="w-3 h-3 shrink-0" />
-                                          <span className="truncate">{v.lastUrl.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                                          <span className="truncate">{displayUrl.replace(/^https?:\/\/(www\.)?/, '')}</span>
                                           <ExternalLink className="w-2.5 h-2.5 opacity-65 shrink-0" />
                                         </a>
                                       ) : (
@@ -313,8 +359,25 @@ export function QueryFanoutsTable({ data }: QueryFanoutsTableProps) {
                                         timeStyle: 'short',
                                       })}
                                     </TableCell>
+                                    <TableCell className="text-center py-2.5">
+                                      <button
+                                        onClick={() => handleRecheck(v.query, v.runId, item.projectId)}
+                                        disabled={isLoading}
+                                        title="Re-check Google ranking now"
+                                        className="inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-md border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
+                                      >
+                                        <RefreshCw className={`w-2.5 h-2.5 ${isLoading ? 'animate-spin' : ''}`} />
+                                        {isLoading ? 'Checking…' : 'Recheck'}
+                                      </button>
+                                      {recheck?.error && (
+                                        <p className="text-[9px] text-destructive mt-0.5 max-w-[80px] truncate" title={recheck.error}>
+                                          {recheck.error}
+                                        </p>
+                                      )}
+                                    </TableCell>
                                   </TableRow>
-                                ))}
+                                    )
+                                })}
                               </TableBody>
                             </Table>
                           </div>

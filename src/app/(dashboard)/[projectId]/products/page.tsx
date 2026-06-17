@@ -1,5 +1,6 @@
 import { getProjectScrapedProducts } from '@/lib/queries/products'
 import { ScrapedProductsView } from '@/components/features/products/scraped-products-view'
+import { createDbClient } from '@/lib/supabase/db'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -16,5 +17,14 @@ export default async function ScrapedProductsPage({
 
   const products = await getProjectScrapedProducts(projectId)
 
-  return <ScrapedProductsView initialProducts={products} />
+  const supabase = await createDbClient()
+  const primaryBrand = await supabase
+    .from('brands')
+    .select('name')
+    .eq('project_id', projectId)
+    .eq('is_primary', true)
+    .maybeSingle()
+  const primaryBrandName = primaryBrand?.data?.name ?? 'Own Brand'
+
+  return <ScrapedProductsView initialProducts={products} ownBrandName={primaryBrandName} />
 }
